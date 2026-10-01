@@ -1,0 +1,50 @@
+{
+  "name": "hapio-sdk",
+  "version": "0.1.0",
+  "description": "JavaScript SDK for Hapio.",
+  "license": "MIT",
+  "author": "Viström Digital Development AB",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Hapio-Booking-and-Scheduling-API/hapio-sdk-javascript.git"
+  },
+  "homepage": "https://github.com/Hapio-Booking-and-Scheduling-API/hapio-sdk-javascript",
+  "bugs": {
+    "url": "https://github.com/Hapio-Booking-and-Scheduling-API/hapio-sdk-javascript/issues"
+  },
+  "keywords": [
+    "hapio",
+    "booking",
+    "scheduling",
+    "api",
+    "sdk",
+    "openapi"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "default": "./src/index.js"
+    }
+  },
+  "types": "./src/index.d.ts",
+  "files": [
+    "src/"
+  ],
+  "scripts": {
+    "generate": "node scripts/generate-operations.mjs",
+    "check": "node scripts/check-generated.mjs",
+    "test": "node scripts/run-tests.mjs",
+    "test:types": "tsc --noEmit --strict --target es2022 --module nodenext --moduleResolution nodenext test/types/types.test-d.mts",
+    "prepack": "npm run check"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.13.0",
+    "typescript": "^5.8.3",
+    "yaml": "^2.4.5"
+  }
+}
