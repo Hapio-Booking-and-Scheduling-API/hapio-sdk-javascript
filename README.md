@@ -26,15 +26,15 @@ The published package ships only the runtime client in `src/`. It does not inclu
 ### 3. Create a client
 
 ```js
-import { createHapioClient } from "hapio-sdk";
+import { createHapioClient } from 'hapio-sdk';
 
 const hapio = createHapioClient({
-  token: process.env.HAPIO_TOKEN,
+    token: process.env.HAPIO_TOKEN,
 });
 
 const project = await hapio.getYourProject();
 const bookings = await hapio.getBookings({
-  query: { page: 1, per_page: 10 },
+    query: { page: 1, per_page: 10 },
 });
 ```
 
@@ -64,10 +64,10 @@ No `@types` package is required.
 
 ```js
 const hapio = createHapioClient({
-  token: "your-api-token",
-  baseUrl: "https://eu-central-1.hapio.net/v1", // optional, this is the default
-  headers: { "X-Custom-Header": "value" },       // optional default headers
-  fetch,                                          // optional fetch implementation
+    token: 'your-api-token',
+    baseUrl: 'https://eu-central-1.hapio.net/v1', // optional, this is the default
+    headers: { 'X-Custom-Header': 'value' }, // optional default headers
+    fetch, // optional fetch implementation
 });
 ```
 
@@ -77,8 +77,8 @@ When running Hapio locally:
 
 ```js
 const hapio = createHapioClient({
-  token: process.env.HAPIO_TOKEN,
-  baseUrl: "http://localhost:8080/v1",
+    token: process.env.HAPIO_TOKEN,
+    baseUrl: 'http://localhost:8080/v1',
 });
 ```
 
@@ -88,39 +88,42 @@ Every OpenAPI `operationId` becomes a method on the client.
 
 Each method accepts one optional argument object:
 
-| Key | Purpose |
-|-----|---------|
-| `path` | Path parameters, e.g. `{ booking: "uuid" }` |
-| `query` | Query parameters |
-| `body` | JSON request body for POST, PUT, and PATCH |
-| `headers` | Extra headers for this request |
-| `signal` | `AbortSignal` for timeouts and cancellation |
+| Key       | Purpose                                     |
+| --------- | ------------------------------------------- |
+| `path`    | Path parameters, e.g. `{ booking: "uuid" }` |
+| `query`   | Query parameters                            |
+| `body`    | JSON request body for POST, PUT, and PATCH  |
+| `headers` | Extra headers for this request              |
+| `signal`  | `AbortSignal` for timeouts and cancellation |
 
 ### Examples
 
 ```js
 // GET /bookings/{booking}
 const booking = await hapio.getBooking({
-  path: { booking: "41bf45bd-67eb-4b30-af4c-a96197fde8e3" },
+    path: { booking: '41bf45bd-67eb-4b30-af4c-a96197fde8e3' },
 });
 
 // POST /bookings
 const created = await hapio.postBooking({
-  body: {
-    service_id: "…",
-    location_id: "…",
-    resource_id: "…", // optional — Hapio can select a resource automatically
-    starts_at: "2026-02-01T10:00:00+00:00",
-    ends_at: "2026-02-01T10:30:00+00:00",
-    is_temporary: false,
-    metadata: { source: "my-app" },
-  },
+    body: {
+        service_id: '…',
+        location_id: '…',
+        resource_id: '…', // optional — Hapio can select a resource automatically
+        starts_at: '2026-02-01T10:00:00+00:00',
+        ends_at: '2026-02-01T10:30:00+00:00',
+        is_temporary: false,
+        metadata: { source: 'my-app' },
+    },
 });
 
 // GET /services/{service}/bookable-slots
 const slots = await hapio.getServiceBookableSlots({
-  path: { service: "…" },
-  query: { from: "2026-02-01T00:00:00+00:00", to: "2026-02-07T00:00:00+00:00" },
+    path: { service: '…' },
+    query: {
+        from: '2026-02-01T00:00:00+00:00',
+        to: '2026-02-07T00:00:00+00:00',
+    },
 });
 ```
 
@@ -130,7 +133,7 @@ Some list endpoints use enum filters instead of booleans. For example, `canceled
 
 ```js
 const canceled = await hapio.getBookings({
-  query: { page: 1, per_page: 50, canceled: "only" },
+    query: { page: 1, per_page: 50, canceled: 'only' },
 });
 ```
 
@@ -138,10 +141,10 @@ Bracket-style query keys are passed as plain object keys:
 
 ```js
 const bookings = await hapio.getBookings({
-  query: {
-    "starts_at[gte]": "2026-02-01T00:00:00+00:00",
-    "starts_at[lte]": "2026-03-01T00:00:00+00:00",
-  },
+    query: {
+        'starts_at[gte]': '2026-02-01T00:00:00+00:00',
+        'starts_at[lte]': '2026-03-01T00:00:00+00:00',
+    },
 });
 ```
 
@@ -158,19 +161,19 @@ The client also exposes:
 Non-2xx responses throw `HapioError` with the HTTP status, parsed response body, and response headers.
 
 ```js
-import { createHapioClient, HapioError } from "hapio-sdk";
+import { createHapioClient, HapioError } from 'hapio-sdk';
 
 const hapio = createHapioClient({ token: process.env.HAPIO_TOKEN });
 
 try {
-  await hapio.getBooking({ path: { booking: "…" } });
+    await hapio.getBooking({ path: { booking: '…' } });
 } catch (err) {
-  if (err instanceof HapioError) {
-    console.error(err.status);
-    console.dir(err.data);
-  } else {
-    throw err; // network errors, missing path params, etc.
-  }
+    if (err instanceof HapioError) {
+        console.error(err.status);
+        console.dir(err.data);
+    } else {
+        throw err; // network errors, missing path params, etc.
+    }
 }
 ```
 
