@@ -209,4 +209,25 @@ hapio.paginate("getNothing");
 // @ts-expect-error the arguments are checked against the operation
 hapio.paginate("getBookings", { query: { page: "one" } });
 
-void [notANumber, id, badId, client, serviceCount, formatted, startsAt, asDate, retryOptions, paginatedSetIsExact, notANumberItem];
+// Fields the API always returns stay required in responses, even when the spec gives them a default.
+const canceled: boolean = aBooking.is_canceled;
+const temporary: boolean = aBooking.is_temporary;
+const aLocation = await hapio.getLocation({ path: { location: "l" } });
+const locationEnabled: boolean = aLocation.enabled;
+const theProject = await hapio.getYourProject();
+const projectEnabled: boolean = theProject.enabled;
+
+// ...while request properties that have a server-side default can be left out.
+await hapio.putBooking({
+  path: { booking: "a" },
+  body: { resource_id: "r", service_id: "s", location_id: "l", starts_at: "x", ends_at: "y" },
+});
+await hapio.patchBooking({ path: { booking: "a" }, body: { metadata: { a: 1 } } });
+await hapio.postBooking({
+  body: { service_id: "a", location_id: "b", starts_at: "x", ends_at: "y", ignore_schedule: true, ignore_booking_window: false },
+});
+await hapio.postBookingGroup({
+  body: { bookings: [{ service_id: "a", location_id: "b", starts_at: "x", ends_at: "y" }] },
+});
+
+void [notANumber, id, badId, client, serviceCount, formatted, startsAt, asDate, retryOptions, paginatedSetIsExact, notANumberItem, canceled, temporary, locationEnabled, projectEnabled];

@@ -116,6 +116,84 @@ for (const oldId of Object.keys(OPERATION_ID_OVERRIDES)) {
 }
 
 /**
+ * Adds the names of the component schemas reachable from `node` (following $refs) to `into`.
+ *
+ * @param {any} node
+ * @param {Set<string>} into
+ * @param {Set<any>} seen
+ */
+function collectSchemaNames(node, into, seen = new Set()) {
+  if (!node || typeof node !== "object" || seen.has(node)) return;
+  seen.add(node);
+  if (node.$ref) {
+    const match = /^#\/components\/schemas\/(.+)$/.exec(node.$ref);
+    if (match) into.add(match[1]);
+    collectSchemaNames(resolveRef(spec, node.$ref), into, seen);
+    return;
+  }
+  for (const key of ["allOf", "oneOf", "anyOf"]) {
+    for (const sub of node[key] ?? []) collectSchemaNames(sub, into, seen);
+  }
+  if (node.items) collectSchemaNames(node.items, into, seen);
+  for (const prop of Object.values(node.properties ?? {})) collectSchemaNames(prop, into, seen);
+  if (node.additionalProperties && typeof node.additionalProperties === "object") {
+    collectSchemaNames(node.additionalProperties, into, seen);
+  }
+}
+
+/**
+ * @param {any} node
+ * @param {Set<any>} seen
+ * @returns {number} how many defaults were removed
+ */
+function removeDefaults(node, seen = new Set()) {
+  if (!node || typeof node !== "object" || node.$ref || seen.has(node)) return 0;
+  seen.add(node);
+  let removed = 0;
+  for (const key of ["allOf", "oneOf", "anyOf"]) {
+    for (const sub of node[key] ?? []) removed += removeDefaults(sub, seen);
+  }
+  if (node.items) removed += removeDefaults(node.items, seen);
+  for (const prop of Object.values(node.properties ?? {})) {
+    if (prop && typeof prop === "object" && !prop.$ref && "default" in prop) {
+      delete prop.default;
+      removed++;
+    }
+    removed += removeDefaults(prop, seen);
+  }
+  return removed;
+}
+
+/**
+ * Removes the `default` of every property in the component schemas that are used by request
+ * bodies and by no response.
+ *
+ * @param {any} root
+ */
+function removeDefaultsFromRequestOnlySchemas(root) {
+  /** @type {Set<string>} */
+  const used = new Set();
+  /** @type {Set<string>} */
+  const usedInResponses = new Set();
+  for (const pathItem of Object.values(root?.paths ?? {})) {
+    for (const op of Object.values(pathItem ?? {})) {
+      if (!op || typeof op !== "object" || !op.operationId) continue;
+      const body = op.requestBody?.$ref ? resolveRef(root, op.requestBody.$ref) : op.requestBody;
+      for (const media of Object.values(body?.content ?? {})) collectSchemaNames(media?.schema, used);
+      for (const response of Object.values(op.responses ?? {})) {
+        const resolved = response?.$ref ? resolveRef(root, response.$ref) : response;
+        for (const media of Object.values(resolved?.content ?? {})) collectSchemaNames(media?.schema, usedInResponses);
+      }
+    }
+  }
+  let removed = 0;
+  for (const name of used) {
+    if (!usedInResponses.has(name)) removed += removeDefaults(root.components?.schemas?.[name]);
+  }
+  console.log(`Removed ${removed} defaults from request-only schemas.`);
+}
+
+/**
  * Collects the names of writable `format: date-time` properties in a request body schema.
  * Read-only properties (such as `created_at`) are never sent, so they are skipped.
  *
@@ -287,9 +365,14 @@ function withBracketFilterKeys(dts) {
   );
 }
 
-// Properties with a `default` (for example `is_temporary` and the `ignore_*` flags) are optional
-// in request bodies, so don't let openapi-typescript turn them into required properties.
-const openapiAst = await openapiTS(spec, { defaultNonNullable: false });
+// openapi-typescript treats a property with a `default` as always present, which is right for
+// responses (`is_canceled` is always returned) but wrong for request bodies, where the property
+// can be left out (`ignore_*` and `is_temporary` default on the server). So remove the defaults
+// from schemas that are only used in requests, and keep the default behaviour everywhere else.
+// Schemas used for both requests and responses (such as Location) keep the response-accurate
+// behaviour, because one type cannot be right for both.
+removeDefaultsFromRequestOnlySchemas(spec);
+const openapiAst = await openapiTS(spec);
 
 // The spec declares `metadata` and `protected_metadata` as a free-form `type: object`, which
 // openapi-typescript emits as `Record<string, never>` (no keys allowed). The API accepts any JSON
