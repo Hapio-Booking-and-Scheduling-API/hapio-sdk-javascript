@@ -176,6 +176,7 @@ for await (const booking of hapio.paginate('getBookings', {
 - It takes the same arguments as the operation and sends one request per page, starting at `query.page` (default 1) and stopping after the last page. Set `query.per_page` (1–100, default 100) to change the page size.
 - Breaking out of the loop stops requesting more pages, and the `signal` you pass also cancels the iteration.
 - Your arguments are not modified.
+- If you pass `sort`, include a property that makes the order unique as the last key, for example `sort: 'starts_at.asc,created_at.asc'`. The API pages with offsets, and when the sort key repeats (several bookings can share a start time) it can skip an item and repeat another between pages. Sorting only by `starts_at` showed this in testing, and adding `created_at` fixed it.
 - It works for the operations that return `{ data, links, meta }`: `getBookings`, `getBookingGroups`, `getLocations`, `getResources`, `getServices`, `getResourceScheduleBlocks`, `getResourceRecurringSchedules`, `getResourceRecurringScheduleBlocks`, `getResourceSchedule`, `getResourceFullyBooked` and `getServiceBookableSlots`. TypeScript only accepts these, and types each item. Other operations throw a `TypeError`.
 - To collect everything into an array, push in the loop (`Array.fromAsync` needs Node.js 22):
 
@@ -315,6 +316,6 @@ npm run check
 HAPIO_TOKEN=<token of an empty test project> npm run test:live
 ```
 
-It makes more requests than the API allows per minute, so it relies on the `retry` option and can take a minute or more. It fails if a new operation is added to the spec without a step that exercises it.
+It makes more requests than the API allows per minute, so it relies on the `retry` option and can take a minute or more. It fails if a new operation is added to the spec without a step that exercises it. One step sends parallel requests for the same slot, and prints a warning (without failing) if the API accepts more than one of them.
 
 `npm publish` runs `prepublishOnly` (tests, type tests and `npm run check`) and `prepack`. It does not regenerate from the spec.
