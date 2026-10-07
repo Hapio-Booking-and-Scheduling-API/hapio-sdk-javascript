@@ -1027,7 +1027,7 @@ export interface paths {
         trace?: never;
     };
 }
-export type webhooks = Record<string, unknown>;
+export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /** Bookable slot (fixed) */
@@ -1801,12 +1801,12 @@ export interface components {
             /** @description The human readable error message. */
             readonly message?: string;
             /** @description An object with validation errors. */
-            readonly errors?: Record<string, unknown>;
+            readonly errors?: Record<string, never>;
         };
         /** Booking group error */
         BookingGroupError: {
             /** @description The human readable error messages. */
-            readonly messages?: Record<string, unknown>;
+            readonly messages?: Record<string, never>;
         };
         /** Location */
         Location: {
@@ -2579,7 +2579,7 @@ export interface components {
     headers: never;
     pathItems: never;
 }
-export type $defs = Record<string, unknown>;
+export type $defs = Record<string, never>;
 export interface operations {
     getBookings: {
         parameters: {
@@ -2734,7 +2734,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Booking"];
-                    "application/xml": Record<string, unknown>;
+                    "application/xml": Record<string, never>;
                 };
             };
             403: components["responses"]["Forbidden"];
@@ -3017,7 +3017,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BookingGroup"];
-                    "application/xml": Record<string, unknown>;
+                    "application/xml": Record<string, never>;
                 };
             };
             403: components["responses"]["Forbidden"];
@@ -3272,7 +3272,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Location"];
-                    "application/xml": Record<string, unknown>;
+                    "application/xml": Record<string, never>;
                 };
             };
             403: components["responses"]["Forbidden"];
@@ -3554,7 +3554,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Resource"];
-                    "application/xml": Record<string, unknown>;
+                    "application/xml": Record<string, never>;
                 };
             };
             403: components["responses"]["Forbidden"];
@@ -4994,7 +4994,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Service"];
-                    "application/xml": Record<string, unknown>;
+                    "application/xml": Record<string, never>;
                 };
             };
             403: components["responses"]["Forbidden"];

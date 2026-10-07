@@ -60,15 +60,45 @@ function buildQueryString(query) {
 }
 
 /**
- * JSON.stringify replacer that formats `Date` values for the API instead of using `toISOString()`.
- *
- * @this {any}
- * @param {string} key
- * @param {any} value
+ * Creates a JSON.stringify replacer that formats `Date` values for the API instead of using
+ * `toISOString()`. Everything below `metadata` and `protected_metadata` is free-form user data, so
+ * it is left to JSON.stringify as it is (a `Date` there becomes a normal ISO string, and an invalid
+ * one becomes `null`).
  */
-function jsonReplacer(key, value) {
-  const original = this[key];
-  return original instanceof Date ? formatTimestamp(original) : value;
+function createJsonReplacer() {
+  /** @type {WeakSet<object>} */
+  const freeForm = new WeakSet();
+  /**
+   * @this {any}
+   * @param {string} key
+   * @param {any} value
+   */
+  return function replacer(key, value) {
+    const original = this[key];
+    const insideFreeForm = freeForm.has(this);
+    if (original !== null && typeof original === "object" && !(original instanceof Date)) {
+      if (insideFreeForm || key === "metadata" || key === "protected_metadata") freeForm.add(original);
+    }
+    return original instanceof Date && !insideFreeForm ? formatTimestamp(original) : value;
+  };
+}
+
+/**
+ * Bodies that can be sent a second time. Streams and other one-shot bodies cannot, so a request
+ * with one is never retried.
+ *
+ * @param {any} body
+ */
+function isReplayable(body) {
+  return (
+    body === undefined ||
+    typeof body === "string" ||
+    body instanceof ArrayBuffer ||
+    ArrayBuffer.isView(body) ||
+    (typeof Blob !== "undefined" && body instanceof Blob) ||
+    (typeof URLSearchParams !== "undefined" && body instanceof URLSearchParams) ||
+    (typeof FormData !== "undefined" && body instanceof FormData)
+  );
 }
 
 /**
@@ -134,7 +164,10 @@ const DEFAULT_RETRY = { attempts: 3, baseDelayMs: 1000, maxDelayMs: 60_000 };
  * @returns {{ attempts: number, baseDelayMs: number, maxDelayMs: number }}
  */
 function normalizeRetry(retry) {
-  if (retry === undefined || retry === false) return { ...DEFAULT_RETRY, attempts: 0 };
+  if (!retry) return { ...DEFAULT_RETRY, attempts: 0 }; // undefined, null, false, 0 and "" all mean off
+  if (retry !== true && (typeof retry !== "object" || Array.isArray(retry))) {
+    throw new TypeError("Invalid retry option: expected true, false or an options object");
+  }
   const merged = { ...DEFAULT_RETRY, ...(retry === true ? {} : retry) };
   for (const [name, value] of Object.entries(merged)) {
     if (!Number.isFinite(value) || value < 0) {
@@ -153,7 +186,7 @@ function normalizeRetry(retry) {
  * @param {number} attempt Zero-based number of the attempt that was just rejected.
  * @param {{ baseDelayMs: number, maxDelayMs: number }} retry
  */
-function retryDelayMs(headers, attempt, retry) {
+export function retryDelayMs(headers, attempt, retry) {
   const header = headers.get("retry-after");
   /** @type {number | undefined} */
   let delay;
@@ -165,8 +198,8 @@ function retryDelayMs(headers, attempt, retry) {
   delay ??= retry.baseDelayMs * 2 ** attempt;
   if (delay > retry.maxDelayMs) return undefined;
   // A little jitter (at most one second), so many clients that were limited together don't all
-  // retry at exactly the same moment.
-  return delay + Math.random() * Math.min(0.2 * delay, 1000);
+  // retry at exactly the same moment. The wait never goes beyond `maxDelayMs`.
+  return Math.min(retry.maxDelayMs, delay + Math.random() * Math.min(0.2 * delay, 1000));
 }
 
 /**
@@ -238,8 +271,8 @@ export function createRequester(config) {
     if (hasBody) {
       const ct = findHeader(headers, "content-type") ?? op.defaultContentType ?? "application/json";
       if (findHeader(headers, "content-type") === undefined) headers["Content-Type"] = ct;
-      if (ct.includes("application/json")) {
-        body = JSON.stringify(bodyArg, jsonReplacer);
+      if (isJsonContentType(ct)) {
+        body = JSON.stringify(bodyArg, createJsonReplacer());
       } else {
         body = bodyArg;
       }
@@ -248,7 +281,7 @@ export function createRequester(config) {
 
     // A 429 means the request was not processed, so retrying is safe for every method. A streamed
     // body can only be sent once, so those requests are never retried.
-    const replayable = !(body && typeof body.getReader === "function");
+    const replayable = isReplayable(body);
     /** @type {Response} */
     let res;
     for (let attempt = 0; ; attempt++) {

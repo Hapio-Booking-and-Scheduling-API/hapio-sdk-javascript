@@ -173,7 +173,7 @@ for await (const booking of hapio.paginate('getBookings', {
 }
 ```
 
-- It takes the same arguments as the operation and sends one request per page, starting at `query.page` (default 1) and stopping after the last page. Set `query.per_page` (1–100, default 100) to change the page size.
+- It takes the same arguments as the operation (an unknown or non-paginated operation, or an invalid `query.page`, throws as soon as you call it) and sends one request per page, starting at `query.page` (default 1) and stopping after the last page. Set `query.per_page` (1–100, default 100) to change the page size.
 - Breaking out of the loop stops requesting more pages, and the `signal` you pass also cancels the iteration.
 - Your arguments are not modified.
 - To read everything, prefer the default order. The API pages with offsets, and with an explicit `sort` whose key repeats between items it can skip one item and repeat another between pages. In testing, `starts_at.asc` (several bookings sharing a start time), `created_at.asc` and `created_at.desc` (bookings created in the same second) each did this on some data, while the default order returned every item exactly once every time. If you need a specific order, end the `sort` with a key that differs between items, and check that you get every item.
@@ -240,7 +240,9 @@ const hapio = createHapioClient({
 
 - Only `429` responses are retried. A `429` means the request was not processed, so this is safe for `POST`, `PUT`, `PATCH` and `DELETE` too.
 - `attempts` is the number of retries after the first attempt (default 3). Without a usable `Retry-After` header the wait starts at `baseDelayMs` and doubles on each retry.
-- If `Retry-After` is longer than `maxDelayMs` (default 60000), the client does not wait and throws the `429` straight away.
+- If `Retry-After` is longer than `maxDelayMs` (default 60000), the client does not wait and throws the `429` straight away. A wait never goes beyond `maxDelayMs`, the small random delay added to it included.
+- Requests with a streamed body (`ReadableStream`, an async iterable, a Node stream) are never retried, because the body can only be sent once. Strings, binary data, `Blob`, `FormData` and `URLSearchParams` are.
+- `retry` takes `true`, `false` or an options object. `null`, `0` and `undefined` mean off, and any other value throws a `TypeError`.
 - The `signal` you pass also cancels a pending wait.
 - When the attempts run out, the last `429` is thrown as a `HapioError` as usual. The headers are on the error either way:
 
@@ -268,7 +270,7 @@ await hapio.getBookings({ signal: AbortSignal.timeout(10_000) });
 
 The API expects ISO 8601 timestamps in the form `2026-02-01T10:00:00+00:00`. It **rejects** `Date.prototype.toISOString()` output (`2026-02-01T10:00:00.000Z`) with a `422`.
 
-`Date` objects you pass in `query` or `body` are formatted for you, in UTC without milliseconds. Strings are sent exactly as you give them. You can also format a date yourself:
+`Date` objects you pass in `query` or `body` are formatted for you, in UTC without milliseconds. Strings are sent exactly as you give them. `metadata` and `protected_metadata` are free-form, so a `Date` inside them is left to `JSON.stringify` and sent as a normal ISO string (`2026-02-01T10:00:00.000Z`). You can also format a date yourself:
 
 ```js
 import { formatTimestamp } from 'hapio-sdk';

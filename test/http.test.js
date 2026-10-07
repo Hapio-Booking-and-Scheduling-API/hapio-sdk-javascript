@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import http from "node:http";
 import { describe, it } from "node:test";
 import { createHapioClient, formatTimestamp, HapioError } from "../src/index.js";
+import { retryDelayMs } from "../src/lib/http.js";
 
 // These tests talk to a real local HTTP server through the real fetch(), so they cover behaviour the
 // fake Response objects in sdk.test.js cannot: header casing, content types, and body parsing.
@@ -58,7 +59,7 @@ describe("Date values", () => {
     assert.equal(params.get("starts_at[gte]"), "2026-02-01T00:00:00+00:00");
   });
 
-  it("are formatted for the API in JSON bodies, including nested values", async () => {
+  it("are formatted for the API in JSON bodies, including inside nested objects and arrays", async () => {
     respond = (_req, res) => json(res, 201, { id: "booking-1" });
     await client().postBooking({
       body: /** @type {any} */ ({
@@ -66,13 +67,44 @@ describe("Date values", () => {
         location_id: "loc-1",
         starts_at: new Date("2026-02-01T10:00:00Z"),
         ends_at: new Date("2026-02-01T10:30:00.123Z"),
-        metadata: { when: new Date("2026-03-01T00:00:00Z") },
       }),
     });
     const sent = JSON.parse(last.body);
     assert.equal(sent.starts_at, "2026-02-01T10:00:00+00:00");
     assert.equal(sent.ends_at, "2026-02-01T10:30:00+00:00");
-    assert.equal(sent.metadata.when, "2026-03-01T00:00:00+00:00");
+
+    await client().postBookingGroup({
+      body: /** @type {any} */ ({ bookings: [{ service_id: "s", location_id: "l", starts_at: new Date("2026-02-01T10:00:00Z"), ends_at: "x" }] }),
+    });
+    assert.equal(JSON.parse(last.body).bookings[0].starts_at, "2026-02-01T10:00:00+00:00");
+  });
+
+  it("leave free-form metadata alone: a Date there is an ordinary JSON date", async () => {
+    respond = (_req, res) => json(res, 201, { id: "booking-1" });
+    const when = new Date("2026-03-01T00:00:00.123Z");
+    await client().postBooking({
+      body: /** @type {any} */ ({
+        service_id: "svc-1",
+        location_id: "loc-1",
+        starts_at: new Date("2026-02-01T10:00:00Z"),
+        ends_at: "x",
+        metadata: { when, nested: { list: [when] } },
+        protected_metadata: { when },
+      }),
+    });
+    const sent = JSON.parse(last.body);
+    assert.equal(sent.starts_at, "2026-02-01T10:00:00+00:00");
+    assert.equal(sent.metadata.when, "2026-03-01T00:00:00.123Z");
+    assert.equal(sent.metadata.nested.list[0], "2026-03-01T00:00:00.123Z");
+    assert.equal(sent.protected_metadata.when, "2026-03-01T00:00:00.123Z");
+  });
+
+  it("do not throw for an invalid Date in metadata, which becomes null as with JSON.stringify", async () => {
+    respond = (_req, res) => json(res, 201, { id: "booking-1" });
+    await client().postBooking({
+      body: /** @type {any} */ ({ service_id: "s", location_id: "l", starts_at: "x", ends_at: "y", metadata: { seen: new Date("nope") } }),
+    });
+    assert.equal(JSON.parse(last.body).metadata.seen, null);
   });
 
   it("reject invalid dates before sending anything", async () => {
@@ -117,6 +149,19 @@ describe("arguments and headers", () => {
     await hapio.getBookings({ headers: perCall });
     assert.deepEqual(defaults, { "X-App": "1" });
     assert.deepEqual(perCall, { "X-Other": "2" });
+  });
+
+  it("encodes object bodies as JSON for any +json content type", async () => {
+    respond = (_req, res) => json(res, 200, {});
+    for (const contentType of ["application/merge-patch+json", "application/vnd.api+json", "application/json; charset=utf-8"]) {
+      await client().patchBooking({
+        path: { booking: "b" },
+        headers: { "Content-Type": contentType },
+        body: /** @type {any} */ ({ metadata: { a: 1 } }),
+      });
+      assert.equal(last.headers["content-type"], contentType);
+      assert.deepEqual(JSON.parse(last.body), { metadata: { a: 1 } });
+    }
   });
 
   it("sends no Content-Type when there is no body", async () => {
@@ -372,5 +417,91 @@ describe("retry on 429", () => {
   it("rejects invalid options when the client is created", () => {
     assert.throws(() => client({ retry: { attempts: -1 } }), /Invalid retry option "attempts"/);
     assert.throws(() => client({ retry: { baseDelayMs: Number.NaN } }), /Invalid retry option "baseDelayMs"/);
+  });
+});
+
+describe("retry options", () => {
+  it("treats null, 0, an empty string and false as off", async () => {
+    for (const retry of [null, 0, "", false, undefined]) {
+      let requests = 0;
+      respond = (_req, res) => {
+        requests++;
+        res.writeHead(429, { "content-type": "application/json", "retry-after": "0" });
+        res.end(JSON.stringify({ message: "Too Many Attempts." }));
+      };
+      await assert.rejects(() => client({ retry: /** @type {any} */ (retry) }).getYourProject(), (err) => err.status === 429);
+      assert.equal(requests, 1, `retry: ${JSON.stringify(retry)}`);
+    }
+  });
+
+  it("rejects values that are neither a boolean nor an options object", () => {
+    for (const retry of ["yes", 3, [], ["attempts"]]) {
+      assert.throws(() => client({ retry: /** @type {any} */ (retry) }), /Invalid retry option/);
+    }
+  });
+
+  it("never waits longer than maxDelayMs, jitter included", () => {
+    const headers = new Headers({ "retry-after": "5" });
+    for (let i = 0; i < 500; i++) {
+      assert.equal(retryDelayMs(headers, 0, { baseDelayMs: 1000, maxDelayMs: 5000 }), 5000);
+      const delay = /** @type {number} */ (retryDelayMs(headers, 0, { baseDelayMs: 1000, maxDelayMs: 10_000 }));
+      assert.ok(delay >= 5000 && delay <= 6000, `delay ${delay}`);
+    }
+  });
+
+  it("refuses to wait for a Retry-After above maxDelayMs, and falls back to backoff without the header", () => {
+    assert.equal(retryDelayMs(new Headers({ "retry-after": "120" }), 0, { baseDelayMs: 1000, maxDelayMs: 60_000 }), undefined);
+    const backoff = /** @type {number} */ (retryDelayMs(new Headers(), 2, { baseDelayMs: 100, maxDelayMs: 60_000 }));
+    assert.ok(backoff >= 400 && backoff <= 480, `backoff ${backoff}`);
+  });
+});
+
+describe("retrying request bodies", () => {
+  /**
+   * A fetch that answers 429 once and then succeeds, and counts how often it was called.
+   * @returns {{ fetch: typeof fetch, calls: () => number }}
+   */
+  function limitedOnce() {
+    let calls = 0;
+    return {
+      calls: () => calls,
+      fetch: /** @type {typeof fetch} */ (async () => {
+        calls++;
+        const limited = calls === 1;
+        return new Response(JSON.stringify(limited ? { message: "Too Many Attempts." } : { ok: true }), {
+          status: limited ? 429 : 200,
+          headers: { "content-type": "application/json", "retry-after": "0" },
+        });
+      }),
+    };
+  }
+
+  it("retries string, binary, Blob and form bodies", async () => {
+    const bodies = ["plain text", new Uint8Array([1, 2, 3]), new Blob(["x"]), new URLSearchParams({ a: "1" }), new FormData()];
+    for (const body of bodies) {
+      const { fetch: fake, calls } = limitedOnce();
+      const hapio = createHapioClient({ token: "t", baseUrl, fetch: fake, retry: true });
+      await hapio.postBooking({ headers: { "Content-Type": "application/octet-stream" }, body: /** @type {any} */ (body) });
+      assert.equal(calls(), 2, `body type ${Object.prototype.toString.call(body)}`);
+    }
+  });
+
+  it("does not retry streamed or iterable bodies, which can only be sent once", async () => {
+    const bodies = [
+      new ReadableStream(),
+      (async function* () {
+        yield new Uint8Array([1]);
+      })(),
+      /** @type {any} */ ({ pipe() {}, read() {} }), // Node stream-like
+    ];
+    for (const body of bodies) {
+      const { fetch: fake, calls } = limitedOnce();
+      const hapio = createHapioClient({ token: "t", baseUrl, fetch: fake, retry: true });
+      await assert.rejects(
+        () => hapio.postBooking({ headers: { "Content-Type": "application/octet-stream" }, body }),
+        (err) => err instanceof HapioError && err.status === 429,
+      );
+      assert.equal(calls(), 1);
+    }
   });
 });

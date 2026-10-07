@@ -165,26 +165,52 @@ describe("paginate()", () => {
     assert.equal(seen.length, 1);
   });
 
-  it("throws for operations that are unknown or not paginated, before sending anything", async () => {
+  it("throws at once for operations that are unknown or not paginated, before sending anything", () => {
     setup();
-    await assert.rejects(() => collect(hapio.paginate(/** @type {any} */ ("getNothing"))), /Unknown operation "getNothing"/);
-    await assert.rejects(
-      () => collect(hapio.paginate(/** @type {any} */ ("getBooking"), { path: { booking: "x" } })),
+    assert.throws(() => hapio.paginate(/** @type {any} */ ("getNothing")), /Unknown operation "getNothing"/);
+    assert.throws(
+      () => hapio.paginate(/** @type {any} */ ("getBooking"), { path: { booking: "x" } }),
       /"getBooking" is not a paginated operation/,
     );
-    await assert.rejects(() => collect(hapio.paginate(/** @type {any} */ ("toString"))), /Unknown operation/);
+    assert.throws(() => hapio.paginate(/** @type {any} */ ("toString")), /Unknown operation/);
     assert.equal(seen.length, 0);
   });
 
-  it("rejects an invalid start page", async () => {
+  it("rejects an invalid start page when paginate() is called", () => {
     setup();
     for (const page of [0, -1, 1.5, "2", Number.NaN]) {
-      await assert.rejects(
-        () => collect(hapio.paginate("getBookings", { query: { page: /** @type {any} */ (page) } })),
+      assert.throws(
+        () => hapio.paginate("getBookings", { query: { page: /** @type {any} */ (page) } }),
         /start page must be a positive integer/,
       );
     }
     assert.equal(seen.length, 0);
+  });
+
+  it("does not request anything until the first item is asked for", async () => {
+    setup({ total: 3 });
+    const iterator = hapio.paginate("getBookings");
+    assert.equal(seen.length, 0);
+    await iterator.next();
+    assert.equal(seen.length, 1);
+  });
+
+  it("ignores a non-numeric last_page and uses links.next, so it cannot loop forever", async () => {
+    setup({ total: 25 });
+    override = (page) => ({
+      status: 200,
+      body: { data: page <= 3 ? [{ id: page }] : [], links: { next: page < 3 ? "http://localhost/next" : null }, meta: { last_page: Number.NaN } },
+    });
+    // JSON turns NaN into null, so last_page arrives as null: still not a finite number.
+    const items = await collect(hapio.paginate("getBookings"));
+    assert.equal(items.length, 3);
+    assert.equal(seen.length, 3);
+  });
+
+  it("throws when last_page is unusable and there are no links either", async () => {
+    setup();
+    override = () => ({ status: 200, body: { data: [{ id: 1 }], meta: { last_page: "many" } } });
+    await assert.rejects(() => collect(hapio.paginate("getBookings")), /no pagination information/);
   });
 
   it("throws when the response has no data array", async () => {

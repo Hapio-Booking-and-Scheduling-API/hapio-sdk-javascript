@@ -291,11 +291,15 @@ function withBracketFilterKeys(dts) {
 // in request bodies, so don't let openapi-typescript turn them into required properties.
 const openapiAst = await openapiTS(spec, { defaultNonNullable: false });
 
-// The spec declares `metadata` as a free-form `type: object`, which openapi-typescript emits as
-// `Record<string, never>` (no keys allowed). The API accepts any JSON object there.
+// The spec declares `metadata` and `protected_metadata` as a free-form `type: object`, which
+// openapi-typescript emits as `Record<string, never>` (no keys allowed). The API accepts any JSON
+// object there. Only those two properties are rewritten, not other empty-object types.
 const openapiTypes =
   opsDtsHeader +
-  withBracketFilterKeys(astToString(openapiAst)).replaceAll("Record<string, never>", "Record<string, unknown>");
+  withBracketFilterKeys(astToString(openapiAst)).replace(
+    /\b((?:protected_)?metadata\??: )Record<string, never>/g,
+    "$1Record<string, unknown>",
+  );
 
 if (openapiTypes.includes("[{")) {
   throw new Error("Unconverted bracket placeholder keys remain in the generated types.");
