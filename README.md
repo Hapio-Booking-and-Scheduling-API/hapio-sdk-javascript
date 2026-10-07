@@ -307,4 +307,14 @@ npm run test:types
 npm run check
 ```
 
+### Live test
+
+`npm run test:live` runs every operation against the real API, creating and deleting its own data. It is not part of `npm test` or CI. It needs a token for a **dedicated, empty test project**, and it refuses to run if the project already contains locations, resources, services, bookings or booking groups:
+
+```bash
+HAPIO_TOKEN=<token of an empty test project> npm run test:live
+```
+
+It makes more requests than the API allows per minute, so it relies on the `retry` option and can take a minute or more. It fails if a new operation is added to the spec without a step that exercises it.
+
 `npm publish` runs `prepublishOnly` (tests, type tests and `npm run check`) and `prepack`. It does not regenerate from the spec.

@@ -40,6 +40,7 @@
     "generate": "node scripts/generate-operations.mjs",
     "check": "node scripts/check-generated.mjs",
     "test": "node scripts/run-tests.mjs",
+    "test:live": "node --test test/live/full-cycle.test.js",
     "test:types": "tsc --noEmit --strict --target es2022 --module nodenext --moduleResolution nodenext test/types/types.test-d.mts",
     "prepack": "npm run check",
     "prepublishOnly": "npm test && npm run test:types && npm run check"
