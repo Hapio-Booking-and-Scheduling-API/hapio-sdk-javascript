@@ -1,4 +1,5 @@
 import { createRequester } from "./http.js";
+import { paginate } from "./paginate.js";
 import { baseUrl as generatedBaseUrl, operations } from "../generated/operations.js";
 
 /**
@@ -39,6 +40,7 @@ export function createHapioClient(options = {}) {
     baseUrl,
     operations,
     request,
+    paginate: (operationId, args) => paginate(request, operationId, args),
   };
 
   for (const [operationId, op] of Object.entries(operations)) {

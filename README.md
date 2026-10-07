@@ -130,7 +130,7 @@ const slots = await hapio.getServiceBookableSlots({
 });
 ```
 
-Most list endpoints are paginated and return `{ data, links, meta }`. `per_page` is limited to 100. The association endpoints `getResourceServices()` and `getServiceResources()` return plain arrays.
+Most list endpoints are paginated and return `{ data, links, meta }`. `per_page` defaults to 100 and is limited to 100 (see [Pagination](#pagination) to walk through all pages). The association endpoints `getResourceServices()` and `getServiceResources()` return plain arrays.
 
 ### Filtering
 
@@ -160,6 +160,31 @@ const latest = await hapio.getBookings({
     query: { sort: 'starts_at.desc,created_at.asc' },
 });
 ```
+
+### Pagination
+
+`paginate()` walks every page of a paginated operation and yields the items one by one:
+
+```js
+for await (const booking of hapio.paginate('getBookings', {
+    query: { canceled: 'exclude', 'starts_at[gte]': '2026-02-01T00:00:00+00:00' },
+})) {
+    console.log(booking.id);
+}
+```
+
+- It takes the same arguments as the operation and sends one request per page, starting at `query.page` (default 1) and stopping after the last page. Set `query.per_page` (1–100, default 100) to change the page size.
+- Breaking out of the loop stops requesting more pages, and the `signal` you pass also cancels the iteration.
+- Your arguments are not modified.
+- It works for the operations that return `{ data, links, meta }`: `getBookings`, `getBookingGroups`, `getLocations`, `getResources`, `getServices`, `getResourceScheduleBlocks`, `getResourceRecurringSchedules`, `getResourceRecurringScheduleBlocks`, `getResourceSchedule`, `getResourceFullyBooked` and `getServiceBookableSlots`. TypeScript only accepts these, and types each item. Other operations throw a `TypeError`.
+- To collect everything into an array, push in the loop (`Array.fromAsync` needs Node.js 22):
+
+```js
+const bookings = [];
+for await (const booking of hapio.paginate('getBookings')) bookings.push(booking);
+```
+
+Every page is a request, and the API allows a limited number per window. For large collections, use the [`retry`](#rate-limits-and-retries) option so a `429` waits and continues instead of ending the loop.
 
 ### Prices and metadata
 

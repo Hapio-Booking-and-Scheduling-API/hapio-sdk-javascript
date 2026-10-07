@@ -77,9 +77,30 @@ export type HapioClientOptions = {
   retry?: boolean | HapioRetryOptions;
 };
 
+/** Operations that return a page of results (`{ data, links, meta }`) and can be used with `paginate()`. */
+export type PaginatedOperationId = {
+  [K in OperationId]: "data" extends keyof HapioResponse<K> ? ("meta" extends keyof HapioResponse<K> ? K : never) : never;
+}[OperationId];
+
+type PageItem<Id extends OperationId> =
+  HapioResponse<Id> extends { data?: infer Data }
+    ? NonNullable<Data> extends readonly (infer Item)[]
+      ? Item
+      : never
+    : never;
+
 export type HapioClient = {
   baseUrl: string;
   operations: typeof operations;
+  /**
+   * Walks every page of a paginated operation and yields the items one by one. Starts at
+   * `query.page` (default 1) and stops after the last page. Breaking out of the loop stops
+   * requesting further pages.
+   */
+  paginate: <Id extends PaginatedOperationId>(
+    operationId: Id,
+    args?: HapioRequestArgs<Id>,
+  ) => AsyncGenerator<PageItem<Id>, void, undefined>;
   request: <Id extends OperationId>(op: OperationMeta<Id>, args?: HapioRequestArgs<Id>) => Promise<HapioResponse<Id>>;
 } & {
   [K in OperationId]: (args?: HapioRequestArgs<K>) => Promise<HapioResponse<K>>;

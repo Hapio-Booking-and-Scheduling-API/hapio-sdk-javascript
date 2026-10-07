@@ -2,7 +2,7 @@
 // Compiled under NodeNext without skipLibCheck, the way strict ESM consumers use the SDK.
 // Each @ts-expect-error fails the build if the line below it stops producing an error.
 import { createHapioClient, formatTimestamp, HapioError } from "../../src/index.js";
-import type { HapioClient, HapioResponse, HapioRetryOptions, OperationId } from "../../src/index.js";
+import type { HapioClient, HapioResponse, HapioRetryOptions, OperationId, PaginatedOperationId } from "../../src/index.js";
 
 const hapio = createHapioClient({ token: "test-token" });
 
@@ -169,4 +169,44 @@ createHapioClient({ retry: "yes" });
 // @ts-expect-error unknown retry option
 createHapioClient({ retry: { attempts: 2, jitter: true } });
 
-void [notANumber, id, badId, client, serviceCount, formatted, startsAt, asDate, retryOptions];
+// paginate() is available for exactly the operations that return a page of results.
+type Expected =
+  | "getBookings"
+  | "getBookingGroups"
+  | "getLocations"
+  | "getResources"
+  | "getResourceScheduleBlocks"
+  | "getResourceRecurringSchedules"
+  | "getResourceRecurringScheduleBlocks"
+  | "getResourceSchedule"
+  | "getResourceFullyBooked"
+  | "getServices"
+  | "getServiceBookableSlots";
+type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
+const paginatedSetIsExact: Equal<PaginatedOperationId, Expected> = true;
+
+// It yields typed items, and takes the same arguments as the operation (including Date values).
+for await (const booking of hapio.paginate("getBookings", { query: { per_page: 50, "starts_at[gte]": new Date() } })) {
+  const bookingId: string | undefined = booking.id;
+  const bookingStart: string = booking.starts_at;
+  void [bookingId, bookingStart];
+}
+for await (const slot of hapio.paginate("getServiceBookableSlots", {
+  path: { service: "s" },
+  query: { location: "l", from: new Date(), to: new Date() },
+})) {
+  const slotStart: string | undefined = slot.starts_at;
+  void slotStart;
+}
+// @ts-expect-error items are bookings, not numbers
+const notANumberItem: number | undefined = (await hapio.paginate("getBookings").next()).value;
+// @ts-expect-error not a paginated operation
+hapio.paginate("getBooking", { path: { booking: "a" } });
+// @ts-expect-error plain arrays are not paginated
+hapio.paginate("getResourceServices", { path: { resource: "r" } });
+// @ts-expect-error not an operation
+hapio.paginate("getNothing");
+// @ts-expect-error the arguments are checked against the operation
+hapio.paginate("getBookings", { query: { page: "one" } });
+
+void [notANumber, id, badId, client, serviceCount, formatted, startsAt, asDate, retryOptions, paginatedSetIsExact, notANumberItem];
