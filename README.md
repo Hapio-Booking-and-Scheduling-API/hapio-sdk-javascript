@@ -6,8 +6,10 @@ It is a thin, typed client generated from Hapio’s OpenAPI specification. You g
 
 ## Requirements
 
-- **Node.js 18+** for server-side usage (built-in `fetch`)
+- **Node.js 20.19+ or 22.12+** for server-side usage (built-in `fetch`)
 - Any environment with `fetch` and ES modules (including modern browsers with a bundler)
+
+The package is an ES module, so use `import`. In a CommonJS project, `require('hapio-sdk')` also works on the supported Node.js versions. On older versions it fails with `ERR_REQUIRE_ESM`, so use `await import('hapio-sdk')` there.
 
 ## Getting started
 
@@ -88,13 +90,13 @@ Every OpenAPI `operationId` becomes a method on the client.
 
 Each method accepts one optional argument object:
 
-| Key       | Purpose                                     |
-| --------- | ------------------------------------------- |
-| `path`    | Path parameters, e.g. `{ booking: "uuid" }` |
-| `query`   | Query parameters                            |
-| `body`    | JSON request body for POST, PUT, and PATCH  |
-| `headers` | Extra headers for this request              |
-| `signal`  | `AbortSignal` for timeouts and cancellation |
+| Key       | Purpose                                                                                                         |
+| --------- | --------------------------------------------------------------------------------------------------------------- |
+| `path`    | Path parameters, e.g. `{ booking: "uuid" }` (use quotes for hyphenated names such as `{ 'booking-group': id }`) |
+| `query`   | Query parameters                                                                                                |
+| `body`    | JSON request body for POST, PUT, and PATCH                                                                      |
+| `headers` | Extra headers for this request                                                                                  |
+| `signal`  | `AbortSignal` for timeouts and cancellation                                                                     |
 
 ### Examples
 
@@ -121,11 +123,14 @@ const created = await hapio.postBooking({
 const slots = await hapio.getServiceBookableSlots({
     path: { service: '…' },
     query: {
+        location: '…',
         from: '2026-02-01T00:00:00+00:00',
         to: '2026-02-07T00:00:00+00:00',
     },
 });
 ```
+
+Most list endpoints are paginated and return `{ data, links, meta }`. `per_page` is limited to 100. The association endpoints `getResourceServices()` and `getServiceResources()` return plain arrays.
 
 ### Filtering
 
@@ -148,6 +153,19 @@ const bookings = await hapio.getBookings({
 });
 ```
 
+Sort with `<property>.asc` or `<property>.desc`, and combine sorts with commas:
+
+```js
+const latest = await hapio.getBookings({
+    query: { sort: 'starts_at.desc,created_at.asc' },
+});
+```
+
+### Prices and metadata
+
+- `price` is a string with exactly three decimals, for example `'149.000'`. Other formats such as `'149'` or `'149.00'` are rejected.
+- `metadata` and `protected_metadata` accept any JSON object. An empty object (`{}`) is returned by the API as `[]`, and key order is not preserved.
+
 ### Lower-level access
 
 The client also exposes:
@@ -158,7 +176,7 @@ The client also exposes:
 
 ## Error handling
 
-Non-2xx responses throw `HapioError` with the HTTP status, parsed response body, and response headers.
+Non-2xx responses throw `HapioError` with the HTTP status, parsed response body, and response headers. The error message includes the API's own message when there is one, for example `Hapio API error (404): The booking was not found.`
 
 ```js
 import { createHapioClient, HapioError } from 'hapio-sdk';
@@ -177,13 +195,66 @@ try {
 }
 ```
 
+Validation errors (`422`) list the problems per field in `err.data.errors`.
+
 Successful `DELETE` responses that return `204 No Content` resolve to `undefined`.
+
+### Rate limits and retries
+
+The API rate-limits requests and answers with `429` once the limit is reached. Every response carries `x-ratelimit-limit` and `x-ratelimit-remaining`, and a `429` also has `retry-after` (seconds until the window resets, up to about a minute).
+
+Retrying is off by default. Turn it on with the `retry` option and the client waits for `Retry-After` and sends the request again:
+
+```js
+const hapio = createHapioClient({
+    token: process.env.HAPIO_TOKEN,
+    retry: true, // or { attempts: 3, baseDelayMs: 1000, maxDelayMs: 60000 }
+});
+```
+
+- Only `429` responses are retried. A `429` means the request was not processed, so this is safe for `POST`, `PUT`, `PATCH` and `DELETE` too.
+- `attempts` is the number of retries after the first attempt (default 3). Without a usable `Retry-After` header the wait starts at `baseDelayMs` and doubles on each retry.
+- If `Retry-After` is longer than `maxDelayMs` (default 60000), the client does not wait and throws the `429` straight away.
+- The `signal` you pass also cancels a pending wait.
+- When the attempts run out, the last `429` is thrown as a `HapioError` as usual. The headers are on the error either way:
+
+```js
+try {
+    await hapio.getBookings();
+} catch (err) {
+    if (err instanceof HapioError && err.status === 429) {
+        console.log(err.headers['retry-after'], err.headers['x-ratelimit-remaining']);
+    }
+}
+```
+
+Waiting up to a minute is normal for a burst of requests, so use a timeout (below) if your caller can't wait that long.
+
+### Timeouts
+
+There is no built-in timeout. Pass an `AbortSignal` to set one. The call then rejects with the signal's reason (a `TimeoutError`, not a `HapioError`):
+
+```js
+await hapio.getBookings({ signal: AbortSignal.timeout(10_000) });
+```
 
 ## Date and time values
 
-The API expects ISO 8601 timestamps such as `2026-02-01T10:00:00+00:00`.
+The API expects ISO 8601 timestamps in the form `2026-02-01T10:00:00+00:00`. It **rejects** `Date.prototype.toISOString()` output (`2026-02-01T10:00:00.000Z`) with a `422`.
 
-`Date.prototype.toISOString()` returns UTC with milliseconds (`2026-02-01T10:00:00.000Z`). If the API rejects that format, format timestamps with an explicit offset and without milliseconds.
+`Date` objects you pass in `query` or `body` are formatted for you, in UTC without milliseconds. Strings are sent exactly as you give them. You can also format a date yourself:
+
+```js
+import { formatTimestamp } from 'hapio-sdk';
+
+formatTimestamp(new Date('2026-02-01T10:00:00.789Z')); // '2026-02-01T10:00:00+00:00'
+
+const bookings = await hapio.getBookings({
+    query: { 'starts_at[gte]': formatTimestamp(new Date()) },
+});
+```
+
+In TypeScript, request timestamps (query parameters such as `from`, `to` and `starts_at[gte]`, and body fields such as `starts_at` and `ends_at`) accept a `Date` as well as a string. Fields that are plain dates (`YYYY-MM-DD`, such as `start_date`) take strings only, and so do responses. Timestamps in responses use the project's local UTC offset (for example `+02:00`), so don't assume UTC when parsing them.
 
 ## Resources
 
@@ -199,7 +270,7 @@ This repository contains the hand-written client (`src/lib/`) and committed gene
 
 The OpenAPI spec is a **maintainer-only** build input and is not published to npm. To regenerate the client when the API changes:
 
-1. Place `Hapio-API.v1.yaml` where the generator can find it (see `SPEC_CANDIDATES` in `scripts/generate-operations.mjs`)
+1. Get `Hapio-API.v1.yaml` from the API maintainers and place it in the repository root (it is git-ignored), in a parent directory, or point to it with `HAPIO_SPEC=/path/to/Hapio-API.v1.yaml`
 2. Regenerate, test, and commit the updated files
 3. Bump the package version and publish
 
@@ -211,4 +282,4 @@ npm run test:types
 npm run check
 ```
 
-`npm publish` runs `prepack`, which executes `npm run check` to verify that generated code is present. It does not regenerate from the spec.
+`npm publish` runs `prepublishOnly` (tests, type tests and `npm run check`) and `prepack`. It does not regenerate from the spec.
