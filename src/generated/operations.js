@@ -562,7 +562,7 @@ export const operations = {
       "header": []
     }
   },
-  "putResourceRecurringScheduleScheduleBlock": {
+  "putResourceRecurringScheduleBlock": {
     "method": "PUT",
     "path": "/resources/{resource}/recurring-schedules/{recurring-schedule}/schedule-blocks/{schedule-block}",
     "defaultContentType": "application/json",
@@ -576,7 +576,7 @@ export const operations = {
       "header": []
     }
   },
-  "patchResourceRecurringScheduleScheduleBlock": {
+  "patchResourceRecurringScheduleBlock": {
     "method": "PATCH",
     "path": "/resources/{resource}/recurring-schedules/{recurring-schedule}/schedule-blocks/{schedule-block}",
     "defaultContentType": "application/json",

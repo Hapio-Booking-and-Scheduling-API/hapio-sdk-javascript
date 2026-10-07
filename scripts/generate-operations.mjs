@@ -1,15 +1,20 @@
 import { access, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import YAML from "yaml";
 import openapiTS, { astToString } from "openapi-typescript";
 
+// Resolve everything from the repository root so the script works from any directory.
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SPEC_CANDIDATES = [
-  path.resolve(process.cwd(), "../Hapio-API.v1.yaml"),
-  path.resolve(process.cwd(), "../../Hapio-API.v1.yaml"),
-];
-const OUT_PATH = path.resolve(process.cwd(), "src/generated/operations.js");
-const OUT_TYPES_PATH = path.resolve(process.cwd(), "src/generated/operations.d.ts");
-const OUT_OPENAPI_TYPES_PATH = path.resolve(process.cwd(), "src/generated/openapi.d.ts");
+  process.env.HAPIO_SPEC && path.resolve(process.env.HAPIO_SPEC),
+  path.resolve(ROOT, "Hapio-API.v1.yaml"),
+  path.resolve(ROOT, "../Hapio-API.v1.yaml"),
+  path.resolve(ROOT, "../../Hapio-API.v1.yaml"),
+].filter(Boolean);
+const OUT_PATH = path.resolve(ROOT, "src/generated/operations.js");
+const OUT_TYPES_PATH = path.resolve(ROOT, "src/generated/operations.d.ts");
+const OUT_OPENAPI_TYPES_PATH = path.resolve(ROOT, "src/generated/openapi.d.ts");
 
 /**
  * @param {any} root
@@ -80,15 +85,68 @@ function jsString(s) {
   return JSON.stringify(String(s));
 }
 
+// The spec names these two operations `...RecurringScheduleScheduleBlock` (doubled "Schedule"),
+// while the other operations on the same resource use `...RecurringScheduleBlock`. Rename them
+// here so the client has consistent method names. Remove an entry once the spec itself is fixed.
+const OPERATION_ID_OVERRIDES = {
+  putResourceRecurringScheduleScheduleBlock: "putResourceRecurringScheduleBlock",
+  patchResourceRecurringScheduleScheduleBlock: "patchResourceRecurringScheduleBlock",
+};
+
 const SPEC_PATH = await resolveSpecPath();
 const raw = await readFile(SPEC_PATH, "utf8");
 const spec = YAML.parse(raw);
+
+// Apply the overrides to the spec itself, so the runtime operations and the generated
+// openapi-typescript types agree on the names.
+const appliedOverrides = new Set();
+for (const pathItem of Object.values(spec?.paths ?? {})) {
+  for (const op of Object.values(pathItem ?? {})) {
+    const renamed = op && typeof op === "object" ? OPERATION_ID_OVERRIDES[op.operationId] : undefined;
+    if (renamed) {
+      appliedOverrides.add(op.operationId);
+      op.operationId = renamed;
+    }
+  }
+}
+for (const oldId of Object.keys(OPERATION_ID_OVERRIDES)) {
+  if (!appliedOverrides.has(oldId)) {
+    console.warn(`Note: OPERATION_ID_OVERRIDES entry "${oldId}" matched nothing. Remove it if the spec was fixed.`);
+  }
+}
+
+/**
+ * Collects the names of writable `format: date-time` properties in a request body schema.
+ * Read-only properties (such as `created_at`) are never sent, so they are skipped.
+ *
+ * @param {any} schema
+ * @param {Set<string>} names
+ * @param {Set<any>} seen
+ */
+function collectBodyTimestamps(schema, names, seen = new Set()) {
+  const node = schema?.$ref ? resolveRef(spec, schema.$ref) : schema;
+  if (!node || typeof node !== "object" || seen.has(node)) return;
+  seen.add(node);
+  for (const key of ["allOf", "oneOf", "anyOf"]) {
+    for (const sub of node[key] ?? []) collectBodyTimestamps(sub, names, seen);
+  }
+  if (node.items) collectBodyTimestamps(node.items, names, seen);
+  for (const [name, prop] of Object.entries(node.properties ?? {})) {
+    const resolved = prop?.$ref ? resolveRef(spec, prop.$ref) : prop;
+    if (resolved?.readOnly) continue;
+    if (resolved?.format === "date-time") names.add(name);
+    collectBodyTimestamps(resolved, names, seen);
+  }
+}
 
 const baseUrl =
   (Array.isArray(spec?.servers) && spec.servers[0]?.url) || "https://eu-central-1.hapio.net/v1";
 
 /** @type {Record<string, any>} */
 const operations = {};
+
+/** @type {Record<string, { query: string[], body: string[] }>} */
+const timestampFields = {};
 
 for (const [p, pathItem] of Object.entries(spec?.paths ?? {})) {
   if (!pathItem || typeof pathItem !== "object") continue;
@@ -114,6 +172,24 @@ for (const [p, pathItem] of Object.entries(spec?.paths ?? {})) {
 
     const defaultContentType = pickDefaultContentType(spec, op.requestBody);
 
+    // Which query parameters and body properties are timestamps? The client types let callers pass
+    // a `Date` for these (the runtime formats it), but not for plain `format: date` fields.
+    const queryTimestamps = [...pathLevelParams, ...opParams]
+      .map((par) => (par?.$ref ? resolveRef(spec, par.$ref) : par))
+      .filter((par) => par?.in === "query" && par.schema?.format === "date-time")
+      .map((par) => par.name);
+    const bodyTimestampSet = new Set();
+    const requestBody = op.requestBody?.$ref ? resolveRef(spec, op.requestBody.$ref) : op.requestBody;
+    for (const media of Object.values(requestBody?.content ?? {})) {
+      collectBodyTimestamps(media?.schema, bodyTimestampSet);
+    }
+    if (queryTimestamps.length || bodyTimestampSet.size) {
+      timestampFields[operationId] = { query: queryTimestamps, body: [...bodyTimestampSet].sort() };
+    }
+
+    if (operations[operationId]) {
+      throw new Error(`Duplicate operationId "${operationId}" (${method.toUpperCase()} ${p})`);
+    }
     operations[operationId] = {
       method: method.toUpperCase(),
       path: p,
@@ -133,6 +209,19 @@ export const baseUrl = ${jsString(baseUrl)};
  */
 export const operations = ${JSON.stringify(operations, null, 2)};
 `;
+
+/**
+ * Spec names such as `starts_at[{operator}]` become template literal types, as in
+ * `withBracketFilterKeys` below: `starts_at[${string}]`.
+ *
+ * @param {string[]} names
+ */
+function tsKeyUnion(names) {
+  if (!names.length) return "never";
+  return names
+    .map((name) => (/\{[^}]+\}/.test(name) ? "`" + name.replace(/\{[^}]+\}/g, "${string}") + "`" : JSON.stringify(name)))
+    .join(" | ");
+}
 
 const operationKeys = Object.keys(operations).sort();
 const opsDtsHeader =
@@ -167,7 +256,17 @@ const opsDts =
     .join("") +
   `};\n\n` +
   `export type OperationId = keyof typeof operations;\n` +
-  `export type OperationMeta<Id extends OperationId> = (typeof operations)[Id];\n`;
+  `export type OperationMeta<Id extends OperationId> = (typeof operations)[Id];\n\n` +
+  `/**\n` +
+  ` * The query parameters and request body properties that are timestamps, per operation. The client\n` +
+  ` * types let callers pass a \`Date\` for these. Operations without timestamps are not listed.\n` +
+  ` */\n` +
+  `export type TimestampFields = {\n` +
+  Object.keys(timestampFields)
+    .sort()
+    .map((id) => `  ${JSON.stringify(id)}: { query: ${tsKeyUnion(timestampFields[id].query)}; body: ${tsKeyUnion(timestampFields[id].body)} };\n`)
+    .join("") +
+  `};\n`;
 
 await writeFile(OUT_PATH, header, "utf8");
 await writeFile(OUT_TYPES_PATH, opsDts, "utf8");
@@ -188,12 +287,23 @@ function withBracketFilterKeys(dts) {
   );
 }
 
-const openapiAst = await openapiTS(spec);
-const openapiTypes = opsDtsHeader + withBracketFilterKeys(astToString(openapiAst));
+// Properties with a `default` (for example `is_temporary` and the `ignore_*` flags) are optional
+// in request bodies, so don't let openapi-typescript turn them into required properties.
+const openapiAst = await openapiTS(spec, { defaultNonNullable: false });
+
+// The spec declares `metadata` as a free-form `type: object`, which openapi-typescript emits as
+// `Record<string, never>` (no keys allowed). The API accepts any JSON object there.
+const openapiTypes =
+  opsDtsHeader +
+  withBracketFilterKeys(astToString(openapiAst)).replaceAll("Record<string, never>", "Record<string, unknown>");
+
+if (openapiTypes.includes("[{")) {
+  throw new Error("Unconverted bracket placeholder keys remain in the generated types.");
+}
 
 await writeFile(OUT_OPENAPI_TYPES_PATH, openapiTypes, "utf8");
 
 console.log(
-  `Generated ${Object.keys(operations).length} operations -> ${path.relative(process.cwd(), OUT_PATH)} (+ .d.ts files)`,
+  `Generated ${Object.keys(operations).length} operations -> ${path.relative(ROOT, OUT_PATH)} (+ .d.ts files)`,
 );
 

@@ -28,3 +28,6 @@ Thumbs.db
 *.swp
 *.swo
 *~
+
+# OpenAPI spec (maintainer-only build input, not published)
+Hapio-API.v1.yaml
