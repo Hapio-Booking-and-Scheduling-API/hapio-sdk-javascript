@@ -1,4 +1,5 @@
 import { createRequester } from "./http.js";
+import { paginate } from "./paginate.js";
 import { baseUrl as generatedBaseUrl, operations } from "../generated/operations.js";
 
 /**
@@ -7,6 +8,7 @@ import { baseUrl as generatedBaseUrl, operations } from "../generated/operations
  * @property {string=} baseUrl
  * @property {typeof fetch=} fetch
  * @property {Record<string, string>=} headers
+ * @property {boolean | import("./http.js").RetryOptions=} retry Retry requests that get a 429 (off by default).
  */
 
 /**
@@ -30,6 +32,7 @@ export function createHapioClient(options = {}) {
     token: options.token,
     fetchImpl,
     defaultHeaders: options.headers,
+    retry: options.retry,
   });
 
   /** @type {any} */
@@ -37,11 +40,14 @@ export function createHapioClient(options = {}) {
     baseUrl,
     operations,
     request,
+    paginate: (operationId, args) => paginate(request, operationId, args),
   };
 
   for (const [operationId, op] of Object.entries(operations)) {
     if (!operationId) continue;
-    if (client[operationId]) continue;
+    if (Object.hasOwn(client, operationId)) {
+      throw new Error(`Operation "${operationId}" conflicts with a built-in client property.`);
+    }
     client[operationId] = (args) => request(op, args);
   }
 

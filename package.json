@@ -23,13 +23,14 @@
   "type": "module",
   "sideEffects": false,
   "engines": {
-    "node": ">=18"
+    "node": "^20.19.0 || >=22.12.0"
   },
   "exports": {
     ".": {
       "types": "./src/index.d.ts",
       "default": "./src/index.js"
-    }
+    },
+    "./package.json": "./package.json"
   },
   "types": "./src/index.d.ts",
   "files": [
@@ -39,8 +40,10 @@
     "generate": "node scripts/generate-operations.mjs",
     "check": "node scripts/check-generated.mjs",
     "test": "node scripts/run-tests.mjs",
+    "test:live": "node --test test/live/full-cycle.test.js",
     "test:types": "tsc --noEmit --strict --target es2022 --module nodenext --moduleResolution nodenext test/types/types.test-d.mts",
-    "prepack": "npm run check"
+    "prepack": "npm run check",
+    "prepublishOnly": "npm test && npm run test:types && npm run check"
   },
   "devDependencies": {
     "openapi-typescript": "^7.13.0",

@@ -706,7 +706,7 @@ export interface paths {
          *
          *     If the new recurring schedule block overlaps with an existing schedule block for the recurring schedule, the recurring schedule block won’t be replaced, and a `422 Unprocessable Entity` response will be returned.
          */
-        put: operations["putResourceRecurringScheduleScheduleBlock"];
+        put: operations["putResourceRecurringScheduleBlock"];
         post?: never;
         /**
          * Delete a recurring schedule block
@@ -729,7 +729,7 @@ export interface paths {
          *
          *     If the patched recurring schedule block overlaps with an existing schedule block for the recurring schedule, the recurring schedule block won’t be patched, and a `422 Unprocessable Entity` response will be returned.
          */
-        patch: operations["patchResourceRecurringScheduleScheduleBlock"];
+        patch: operations["patchResourceRecurringScheduleBlock"];
         trace?: never;
     };
     "/resources/{resource}/schedule": {
@@ -1110,9 +1110,9 @@ export interface components {
             /** @description The price of the booking. */
             price?: string | null;
             /** @description Metadata associated with the booking. The client is free to fill this object with any valid JSON. */
-            metadata?: Record<string, never> | null;
+            metadata?: Record<string, unknown> | null;
             /** @description Protected metadata associated with the booking. The client is free to fill this object with any valid JSON. */
-            protected_metadata?: Record<string, never> | null;
+            protected_metadata?: Record<string, unknown> | null;
             /**
              * @description Whether the booking is temporary (i.e. not finalized).
              * @default false
@@ -1189,9 +1189,9 @@ export interface components {
             /** @description The price of the booking. */
             price?: string | null;
             /** @description Metadata associated with the booking. The client is free to fill this object with any valid JSON. */
-            metadata?: Record<string, never> | null;
+            metadata?: Record<string, unknown> | null;
             /** @description Protected metadata associated with the booking. The client is free to fill this object with any valid JSON. */
-            protected_metadata?: Record<string, never> | null;
+            protected_metadata?: Record<string, unknown> | null;
             /** @description Whether the booking is temporary (i.e. not finalized). */
             is_temporary?: boolean;
             /** @description Whether the booking is canceled. */
@@ -1216,31 +1216,16 @@ export interface components {
              * @description The timestamp when the buffer time ends. This timestamp is formatted in ISO 8601 format: `YYYY-MM-DDThh:mm:ss±hh:mm`.
              */
             buffer_ends_at?: string;
-            /**
-             * @description Whether to ignore the schedule of the resource associated with the booking. Setting this to `true` forces the booking to be updated even if it’s outside the schedule of the resource. When this is set to `true`, the property `ignore_bookable_slots` will also be set to `true`. This property will only have an effect if any of the following properties are changed and the booking is not canceled: `starts_at`, `ends_at`, `buffer_starts_at`, `buffer_ends_at`, `resource_id`, `service_id`, `location_id`, `is_canceled`.
-             * @default false
-             */
-            ignore_schedule: boolean;
-            /**
-             * @description Whether to ignore if the resource is fully booked. Setting this to `true` forces the booking to be updated even if it would result in the resource being overbooked. This property will only have an effect if any of the following properties are changed and the booking is not canceled: `starts_at`, `ends_at`, `buffer_starts_at`, `buffer_ends_at`, `resource_id`, `service_id`, `location_id`, `is_canceled`.
-             * @default false
-             */
-            ignore_fully_booked: boolean;
-            /**
-             * @description Whether to ignore the bookable slots for the resource. Setting this to `true` forces the booking to be updated even if it doesn’t match one of the bookable slots for the resource. This will automatically be set to `true` when `ignore_schedule` is set to `true`. This property will only have an effect if any of the following properties are changed and the booking is not canceled: `starts_at`, `ends_at`, `buffer_starts_at`, `buffer_ends_at`, `resource_id`, `service_id`, `location_id`, `is_canceled`.
-             * @default false
-             */
-            ignore_bookable_slots: boolean;
-            /**
-             * @description Whether to ignore the booking window for the service. Setting this to `true` forces the booking to be updated even if it is outside the booking window for the service. This property will only have an effect if any of the following properties are changed and the booking is not canceled: `starts_at`, `ends_at`, `buffer_starts_at`, `buffer_ends_at`, `resource_id`, `service_id`, `location_id`, `is_canceled`.
-             * @default false
-             */
-            ignore_booking_window: boolean;
-            /**
-             * @description Whether to ignore the cancelation threshold for the service of the booking when canceling the booking.
-             * @default false
-             */
-            ignore_cancelation_threshold: boolean;
+            /** @description Whether to ignore the schedule of the resource associated with the booking. Setting this to `true` forces the booking to be updated even if it’s outside the schedule of the resource. When this is set to `true`, the property `ignore_bookable_slots` will also be set to `true`. This property will only have an effect if any of the following properties are changed and the booking is not canceled: `starts_at`, `ends_at`, `buffer_starts_at`, `buffer_ends_at`, `resource_id`, `service_id`, `location_id`, `is_canceled`. */
+            ignore_schedule?: boolean;
+            /** @description Whether to ignore if the resource is fully booked. Setting this to `true` forces the booking to be updated even if it would result in the resource being overbooked. This property will only have an effect if any of the following properties are changed and the booking is not canceled: `starts_at`, `ends_at`, `buffer_starts_at`, `buffer_ends_at`, `resource_id`, `service_id`, `location_id`, `is_canceled`. */
+            ignore_fully_booked?: boolean;
+            /** @description Whether to ignore the bookable slots for the resource. Setting this to `true` forces the booking to be updated even if it doesn’t match one of the bookable slots for the resource. This will automatically be set to `true` when `ignore_schedule` is set to `true`. This property will only have an effect if any of the following properties are changed and the booking is not canceled: `starts_at`, `ends_at`, `buffer_starts_at`, `buffer_ends_at`, `resource_id`, `service_id`, `location_id`, `is_canceled`. */
+            ignore_bookable_slots?: boolean;
+            /** @description Whether to ignore the booking window for the service. Setting this to `true` forces the booking to be updated even if it is outside the booking window for the service. This property will only have an effect if any of the following properties are changed and the booking is not canceled: `starts_at`, `ends_at`, `buffer_starts_at`, `buffer_ends_at`, `resource_id`, `service_id`, `location_id`, `is_canceled`. */
+            ignore_booking_window?: boolean;
+            /** @description Whether to ignore the cancelation threshold for the service of the booking when canceling the booking. */
+            ignore_cancelation_threshold?: boolean;
         };
         /** Booking */
         BookingPost: {
@@ -1267,14 +1252,11 @@ export interface components {
             /** @description The price of the booking. */
             price?: string | null;
             /** @description Metadata associated with the booking. The client is free to fill this object with any valid JSON. */
-            metadata?: Record<string, never> | null;
+            metadata?: Record<string, unknown> | null;
             /** @description Protected metadata associated with the booking. The client is free to fill this object with any valid JSON. */
-            protected_metadata?: Record<string, never> | null;
-            /**
-             * @description Whether the booking is temporary (i.e. not finalized).
-             * @default false
-             */
-            is_temporary: boolean;
+            protected_metadata?: Record<string, unknown> | null;
+            /** @description Whether the booking is temporary (i.e. not finalized). */
+            is_temporary?: boolean;
             /**
              * Format: date-time
              * @description The timestamp when the bookings starts (excluding any buffer time). This timestamp is formatted in ISO 8601 format: `YYYY-MM-DDThh:mm:ss±hh:mm`.
@@ -1295,26 +1277,14 @@ export interface components {
              * @description The timestamp when the buffer time ends. If this is not provided, it will be set automatically based on the property `buffer_time_after` on the service. This timestamp is formatted in ISO 8601 format: `YYYY-MM-DDThh:mm:ss±hh:mm`.
              */
             buffer_ends_at?: string;
-            /**
-             * @description Whether to ignore the schedule of the resource associated with the booking. Setting this to `true` forces the booking to be created even if it’s outside the schedule of the resource. When this is set to `true`, the property `ignore_bookable_slots` will also be set to `true`.
-             * @default false
-             */
-            ignore_schedule: boolean;
-            /**
-             * @description Whether to ignore if the resource is fully booked. Setting this to `true` forces the booking to be created even if it would result in the resource being overbooked.
-             * @default false
-             */
-            ignore_fully_booked: boolean;
-            /**
-             * @description Whether to ignore the bookable slots for the resource. Setting this to `true` forces the booking to be created even if it doesn’t match one of the bookable slots for the resource. This will automatically be set to `true` when `ignore_schedule` is set to `true`.
-             * @default false
-             */
-            ignore_bookable_slots: boolean;
-            /**
-             * @description Whether to ignore the booking window for the service. Setting this to `true` forces the booking to be created even if it is outside the booking window for the service.
-             * @default false
-             */
-            ignore_booking_window: boolean;
+            /** @description Whether to ignore the schedule of the resource associated with the booking. Setting this to `true` forces the booking to be created even if it’s outside the schedule of the resource. When this is set to `true`, the property `ignore_bookable_slots` will also be set to `true`. */
+            ignore_schedule?: boolean;
+            /** @description Whether to ignore if the resource is fully booked. Setting this to `true` forces the booking to be created even if it would result in the resource being overbooked. */
+            ignore_fully_booked?: boolean;
+            /** @description Whether to ignore the bookable slots for the resource. Setting this to `true` forces the booking to be created even if it doesn’t match one of the bookable slots for the resource. This will automatically be set to `true` when `ignore_schedule` is set to `true`. */
+            ignore_bookable_slots?: boolean;
+            /** @description Whether to ignore the booking window for the service. Setting this to `true` forces the booking to be created even if it is outside the booking window for the service. */
+            ignore_booking_window?: boolean;
         };
         /** Booking */
         BookingPut: {
@@ -1341,19 +1311,13 @@ export interface components {
             /** @description The price of the booking. */
             price?: string | null;
             /** @description Metadata associated with the booking. The client is free to fill this object with any valid JSON. */
-            metadata?: Record<string, never> | null;
+            metadata?: Record<string, unknown> | null;
             /** @description Protected metadata associated with the booking. The client is free to fill this object with any valid JSON. */
-            protected_metadata?: Record<string, never> | null;
-            /**
-             * @description Whether the booking is temporary (i.e. not finalized).
-             * @default false
-             */
-            is_temporary: boolean;
-            /**
-             * @description Whether the booking is canceled.
-             * @default false
-             */
-            is_canceled: boolean;
+            protected_metadata?: Record<string, unknown> | null;
+            /** @description Whether the booking is temporary (i.e. not finalized). */
+            is_temporary?: boolean;
+            /** @description Whether the booking is canceled. */
+            is_canceled?: boolean;
             /**
              * Format: date-time
              * @description The timestamp when the bookings starts (excluding any buffer time). This timestamp is formatted in ISO 8601 format: `YYYY-MM-DDThh:mm:ss±hh:mm`.
@@ -1374,31 +1338,16 @@ export interface components {
              * @description The timestamp when the buffer time ends. If this is not provided, it will be set automatically based on the property `buffer_time_after` on the service. This timestamp is formatted in ISO 8601 format: `YYYY-MM-DDThh:mm:ss±hh:mm`.
              */
             buffer_ends_at?: string;
-            /**
-             * @description Whether to ignore the schedule of the resource associated with the booking. Setting this to `true` forces the booking to be replaced even if it’s outside the schedule of the resource. When this is set to `true`, the property `ignore_bookable_slots` will also be set to `true`.
-             * @default false
-             */
-            ignore_schedule: boolean;
-            /**
-             * @description Whether to ignore if the resource is fully booked. Setting this to `true` forces the booking to be replaced even if it would result in the resource being overbooked.
-             * @default false
-             */
-            ignore_fully_booked: boolean;
-            /**
-             * @description Whether to ignore the bookable slots for the resource. Setting this to `true` forces the booking to be replaced even if it doesn’t match one of the bookable slots for the resource. This will automatically be set to `true` when `ignore_schedule` is set to `true`.
-             * @default false
-             */
-            ignore_bookable_slots: boolean;
-            /**
-             * @description Whether to ignore the booking window for the service. Setting this to `true` forces the booking to be replaced even if it is outside the booking window for the service.
-             * @default false
-             */
-            ignore_booking_window: boolean;
-            /**
-             * @description Whether to ignore the cancelation threshold for the service of the booking when canceling the booking.
-             * @default false
-             */
-            ignore_cancelation_threshold: boolean;
+            /** @description Whether to ignore the schedule of the resource associated with the booking. Setting this to `true` forces the booking to be replaced even if it’s outside the schedule of the resource. When this is set to `true`, the property `ignore_bookable_slots` will also be set to `true`. */
+            ignore_schedule?: boolean;
+            /** @description Whether to ignore if the resource is fully booked. Setting this to `true` forces the booking to be replaced even if it would result in the resource being overbooked. */
+            ignore_fully_booked?: boolean;
+            /** @description Whether to ignore the bookable slots for the resource. Setting this to `true` forces the booking to be replaced even if it doesn’t match one of the bookable slots for the resource. This will automatically be set to `true` when `ignore_schedule` is set to `true`. */
+            ignore_bookable_slots?: boolean;
+            /** @description Whether to ignore the booking window for the service. Setting this to `true` forces the booking to be replaced even if it is outside the booking window for the service. */
+            ignore_booking_window?: boolean;
+            /** @description Whether to ignore the cancelation threshold for the service of the booking when canceling the booking. */
+            ignore_cancelation_threshold?: boolean;
         };
         /** Booking */
         BookingEmbedded: {
@@ -1431,9 +1380,9 @@ export interface components {
             /** @description The price of the booking. */
             price?: string | null;
             /** @description Metadata associated with the booking. The client is free to fill this object with any valid JSON. */
-            metadata?: Record<string, never> | null;
+            metadata?: Record<string, unknown> | null;
             /** @description Protected metadata associated with the booking. The client is free to fill this object with any valid JSON. */
-            protected_metadata?: Record<string, never> | null;
+            protected_metadata?: Record<string, unknown> | null;
             /**
              * @description Whether the booking is temporary (i.e. not finalized).
              * @default false
@@ -1505,9 +1454,9 @@ export interface components {
             /** @description The price of the booking. */
             price?: string | null;
             /** @description Metadata associated with the booking. The client is free to fill this object with any valid JSON. */
-            metadata?: Record<string, never> | null;
+            metadata?: Record<string, unknown> | null;
             /** @description Protected metadata associated with the booking. The client is free to fill this object with any valid JSON. */
-            protected_metadata?: Record<string, never> | null;
+            protected_metadata?: Record<string, unknown> | null;
             /** @description Whether the booking is temporary (i.e. not finalized). */
             is_temporary?: boolean;
             /** @description Whether the booking is canceled. */
@@ -1532,31 +1481,16 @@ export interface components {
              * @description The timestamp when the buffer time ends. This timestamp is formatted in ISO 8601 format: `YYYY-MM-DDThh:mm:ss±hh:mm`.
              */
             buffer_ends_at?: string;
-            /**
-             * @description Whether to ignore the schedule of the resource associated with the booking. Setting this to `true` forces the booking to be updated even if it’s outside the schedule of the resource. When this is set to `true`, the property `ignore_bookable_slots` will also be set to `true`. This property will only have an effect if any of the following properties are changed and the booking is not canceled: `starts_at`, `ends_at`, `buffer_starts_at`, `buffer_ends_at`, `resource_id`, `service_id`, `location_id`, `is_canceled`.
-             * @default false
-             */
-            ignore_schedule: boolean;
-            /**
-             * @description Whether to ignore if the resource is fully booked. Setting this to `true` forces the booking to be updated even if it would result in the resource being overbooked. This property will only have an effect if any of the following properties are changed and the booking is not canceled: `starts_at`, `ends_at`, `buffer_starts_at`, `buffer_ends_at`, `resource_id`, `service_id`, `location_id`, `is_canceled`.
-             * @default false
-             */
-            ignore_fully_booked: boolean;
-            /**
-             * @description Whether to ignore the bookable slots for the resource. Setting this to `true` forces the booking to be updated even if it doesn’t match one of the bookable slots for the resource. This will automatically be set to `true` when `ignore_schedule` is set to `true`. This property will only have an effect if any of the following properties are changed and the booking is not canceled: `starts_at`, `ends_at`, `buffer_starts_at`, `buffer_ends_at`, `resource_id`, `service_id`, `location_id`, `is_canceled`.
-             * @default false
-             */
-            ignore_bookable_slots: boolean;
-            /**
-             * @description Whether to ignore the booking window for the service. Setting this to `true` forces the booking to be updated even if it is outside the booking window for the service. This property will only have an effect if any of the following properties are changed and the booking is not canceled: `starts_at`, `ends_at`, `buffer_starts_at`, `buffer_ends_at`, `resource_id`, `service_id`, `location_id`, `is_canceled`.
-             * @default false
-             */
-            ignore_booking_window: boolean;
-            /**
-             * @description Whether to ignore the cancelation threshold for the service of the booking when canceling the booking.
-             * @default false
-             */
-            ignore_cancelation_threshold: boolean;
+            /** @description Whether to ignore the schedule of the resource associated with the booking. Setting this to `true` forces the booking to be updated even if it’s outside the schedule of the resource. When this is set to `true`, the property `ignore_bookable_slots` will also be set to `true`. This property will only have an effect if any of the following properties are changed and the booking is not canceled: `starts_at`, `ends_at`, `buffer_starts_at`, `buffer_ends_at`, `resource_id`, `service_id`, `location_id`, `is_canceled`. */
+            ignore_schedule?: boolean;
+            /** @description Whether to ignore if the resource is fully booked. Setting this to `true` forces the booking to be updated even if it would result in the resource being overbooked. This property will only have an effect if any of the following properties are changed and the booking is not canceled: `starts_at`, `ends_at`, `buffer_starts_at`, `buffer_ends_at`, `resource_id`, `service_id`, `location_id`, `is_canceled`. */
+            ignore_fully_booked?: boolean;
+            /** @description Whether to ignore the bookable slots for the resource. Setting this to `true` forces the booking to be updated even if it doesn’t match one of the bookable slots for the resource. This will automatically be set to `true` when `ignore_schedule` is set to `true`. This property will only have an effect if any of the following properties are changed and the booking is not canceled: `starts_at`, `ends_at`, `buffer_starts_at`, `buffer_ends_at`, `resource_id`, `service_id`, `location_id`, `is_canceled`. */
+            ignore_bookable_slots?: boolean;
+            /** @description Whether to ignore the booking window for the service. Setting this to `true` forces the booking to be updated even if it is outside the booking window for the service. This property will only have an effect if any of the following properties are changed and the booking is not canceled: `starts_at`, `ends_at`, `buffer_starts_at`, `buffer_ends_at`, `resource_id`, `service_id`, `location_id`, `is_canceled`. */
+            ignore_booking_window?: boolean;
+            /** @description Whether to ignore the cancelation threshold for the service of the booking when canceling the booking. */
+            ignore_cancelation_threshold?: boolean;
         };
         /** Booking */
         BookingPostEmbedded: {
@@ -1578,14 +1512,11 @@ export interface components {
             /** @description The price of the booking. */
             price?: string | null;
             /** @description Metadata associated with the booking. The client is free to fill this object with any valid JSON. */
-            metadata?: Record<string, never> | null;
+            metadata?: Record<string, unknown> | null;
             /** @description Protected metadata associated with the booking. The client is free to fill this object with any valid JSON. */
-            protected_metadata?: Record<string, never> | null;
-            /**
-             * @description Whether the booking is temporary (i.e. not finalized).
-             * @default false
-             */
-            is_temporary: boolean;
+            protected_metadata?: Record<string, unknown> | null;
+            /** @description Whether the booking is temporary (i.e. not finalized). */
+            is_temporary?: boolean;
             /**
              * Format: date-time
              * @description The timestamp when the bookings starts (excluding any buffer time). This timestamp is formatted in ISO 8601 format: `YYYY-MM-DDThh:mm:ss±hh:mm`.
@@ -1606,26 +1537,14 @@ export interface components {
              * @description The timestamp when the buffer time ends. If this is not provided, it will be set automatically based on the property `buffer_time_after` on the service. This timestamp is formatted in ISO 8601 format: `YYYY-MM-DDThh:mm:ss±hh:mm`.
              */
             buffer_ends_at?: string;
-            /**
-             * @description Whether to ignore the schedule of the resource associated with the booking. Setting this to `true` forces the booking to be created even if it’s outside the schedule of the resource. When this is set to `true`, the property `ignore_bookable_slots` will also be set to `true`.
-             * @default false
-             */
-            ignore_schedule: boolean;
-            /**
-             * @description Whether to ignore if the resource is fully booked. Setting this to `true` forces the booking to be created even if it would result in the resource being overbooked.
-             * @default false
-             */
-            ignore_fully_booked: boolean;
-            /**
-             * @description Whether to ignore the bookable slots for the resource. Setting this to `true` forces the booking to be created even if it doesn’t match one of the bookable slots for the resource. This will automatically be set to `true` when `ignore_schedule` is set to `true`.
-             * @default false
-             */
-            ignore_bookable_slots: boolean;
-            /**
-             * @description Whether to ignore the booking window for the service. Setting this to `true` forces the booking to be created even if it is outside the booking window for the service.
-             * @default false
-             */
-            ignore_booking_window: boolean;
+            /** @description Whether to ignore the schedule of the resource associated with the booking. Setting this to `true` forces the booking to be created even if it’s outside the schedule of the resource. When this is set to `true`, the property `ignore_bookable_slots` will also be set to `true`. */
+            ignore_schedule?: boolean;
+            /** @description Whether to ignore if the resource is fully booked. Setting this to `true` forces the booking to be created even if it would result in the resource being overbooked. */
+            ignore_fully_booked?: boolean;
+            /** @description Whether to ignore the bookable slots for the resource. Setting this to `true` forces the booking to be created even if it doesn’t match one of the bookable slots for the resource. This will automatically be set to `true` when `ignore_schedule` is set to `true`. */
+            ignore_bookable_slots?: boolean;
+            /** @description Whether to ignore the booking window for the service. Setting this to `true` forces the booking to be created even if it is outside the booking window for the service. */
+            ignore_booking_window?: boolean;
         };
         /** Booking */
         BookingPutEmbedded: {
@@ -1647,19 +1566,13 @@ export interface components {
             /** @description The price of the booking. */
             price?: string | null;
             /** @description Metadata associated with the booking. The client is free to fill this object with any valid JSON. */
-            metadata?: Record<string, never> | null;
+            metadata?: Record<string, unknown> | null;
             /** @description Protected metadata associated with the booking. The client is free to fill this object with any valid JSON. */
-            protected_metadata?: Record<string, never> | null;
-            /**
-             * @description Whether the booking is temporary (i.e. not finalized).
-             * @default false
-             */
-            is_temporary: boolean;
-            /**
-             * @description Whether the booking is canceled.
-             * @default false
-             */
-            is_canceled: boolean;
+            protected_metadata?: Record<string, unknown> | null;
+            /** @description Whether the booking is temporary (i.e. not finalized). */
+            is_temporary?: boolean;
+            /** @description Whether the booking is canceled. */
+            is_canceled?: boolean;
             /**
              * Format: date-time
              * @description The timestamp when the bookings starts (excluding any buffer time). This timestamp is formatted in ISO 8601 format: `YYYY-MM-DDThh:mm:ss±hh:mm`.
@@ -1680,31 +1593,16 @@ export interface components {
              * @description The timestamp when the buffer time ends. If this is not provided, it will be set automatically based on the property `buffer_time_after` on the service. This timestamp is formatted in ISO 8601 format: `YYYY-MM-DDThh:mm:ss±hh:mm`.
              */
             buffer_ends_at?: string;
-            /**
-             * @description Whether to ignore the schedule of the resource associated with the booking. Setting this to `true` forces the booking to be replaced even if it’s outside the schedule of the resource. When this is set to `true`, the property `ignore_bookable_slots` will also be set to `true`.
-             * @default false
-             */
-            ignore_schedule: boolean;
-            /**
-             * @description Whether to ignore if the resource is fully booked. Setting this to `true` forces the booking to be replaced even if it would result in the resource being overbooked.
-             * @default false
-             */
-            ignore_fully_booked: boolean;
-            /**
-             * @description Whether to ignore the bookable slots for the resource. Setting this to `true` forces the booking to be replaced even if it doesn’t match one of the bookable slots for the resource. This will automatically be set to `true` when `ignore_schedule` is set to `true`.
-             * @default false
-             */
-            ignore_bookable_slots: boolean;
-            /**
-             * @description Whether to ignore the booking window for the service. Setting this to `true` forces the booking to be replaced even if it is outside the booking window for the service.
-             * @default false
-             */
-            ignore_booking_window: boolean;
-            /**
-             * @description Whether to ignore the cancelation threshold for the service of the booking when canceling the booking.
-             * @default false
-             */
-            ignore_cancelation_threshold: boolean;
+            /** @description Whether to ignore the schedule of the resource associated with the booking. Setting this to `true` forces the booking to be replaced even if it’s outside the schedule of the resource. When this is set to `true`, the property `ignore_bookable_slots` will also be set to `true`. */
+            ignore_schedule?: boolean;
+            /** @description Whether to ignore if the resource is fully booked. Setting this to `true` forces the booking to be replaced even if it would result in the resource being overbooked. */
+            ignore_fully_booked?: boolean;
+            /** @description Whether to ignore the bookable slots for the resource. Setting this to `true` forces the booking to be replaced even if it doesn’t match one of the bookable slots for the resource. This will automatically be set to `true` when `ignore_schedule` is set to `true`. */
+            ignore_bookable_slots?: boolean;
+            /** @description Whether to ignore the booking window for the service. Setting this to `true` forces the booking to be replaced even if it is outside the booking window for the service. */
+            ignore_booking_window?: boolean;
+            /** @description Whether to ignore the cancelation threshold for the service of the booking when canceling the booking. */
+            ignore_cancelation_threshold?: boolean;
         };
         /** Booking group */
         BookingGroup: {
@@ -1716,9 +1614,9 @@ export interface components {
             /** @description The bookings that belong to the booking group. */
             readonly bookings: components["schemas"]["BookingEmbedded"][];
             /** @description Metadata associated with the booking group. The client is free to fill this object with any valid JSON. */
-            metadata?: Record<string, never> | null;
+            metadata?: Record<string, unknown> | null;
             /** @description Protected metadata associated with the booking group. The client is free to fill this object with any valid JSON. */
-            protected_metadata?: Record<string, never> | null;
+            protected_metadata?: Record<string, unknown> | null;
             /**
              * Format: date-time
              * @description The timestamp when the booking group was created. This timestamp is formatted in ISO 8601 format: `YYYY-MM-DDThh:mm:ss±hh:mm`.
@@ -1738,9 +1636,9 @@ export interface components {
              */
             readonly id?: string;
             /** @description Metadata associated with the booking group. The client is free to fill this object with any valid JSON. */
-            metadata?: Record<string, never> | null;
+            metadata?: Record<string, unknown> | null;
             /** @description Protected metadata associated with the booking group. The client is free to fill this object with any valid JSON. */
-            protected_metadata?: Record<string, never> | null;
+            protected_metadata?: Record<string, unknown> | null;
             /**
              * Format: date-time
              * @description The timestamp when the booking group was created. This timestamp is formatted in ISO 8601 format: `YYYY-MM-DDThh:mm:ss±hh:mm`.
@@ -1763,18 +1661,18 @@ export interface components {
                 id?: string;
             } & components["schemas"]["BookingPatchEmbedded"])[];
             /** @description Metadata associated with the booking group. The client is free to fill this object with any valid JSON. */
-            metadata?: Record<string, never> | null;
+            metadata?: Record<string, unknown> | null;
             /** @description Protected metadata associated with the booking group. The client is free to fill this object with any valid JSON. */
-            protected_metadata?: Record<string, never> | null;
+            protected_metadata?: Record<string, unknown> | null;
         };
         /** Booking group */
         BookingGroupPost: {
             /** @description The bookings that belong to the booking group. */
             bookings: components["schemas"]["BookingPostEmbedded"][];
             /** @description Metadata associated with the booking group. The client is free to fill this object with any valid JSON. */
-            metadata?: Record<string, never> | null;
+            metadata?: Record<string, unknown> | null;
             /** @description Protected metadata associated with the booking group. The client is free to fill this object with any valid JSON. */
-            protected_metadata?: Record<string, never> | null;
+            protected_metadata?: Record<string, unknown> | null;
         };
         /** Booking group */
         BookingGroupPut: {
@@ -1787,9 +1685,9 @@ export interface components {
                 id?: string;
             } & components["schemas"]["BookingPutEmbedded"])[];
             /** @description Metadata associated with the booking group. The client is free to fill this object with any valid JSON. */
-            metadata?: Record<string, never> | null;
+            metadata?: Record<string, unknown> | null;
             /** @description Protected metadata associated with the booking group. The client is free to fill this object with any valid JSON. */
-            protected_metadata?: Record<string, never> | null;
+            protected_metadata?: Record<string, unknown> | null;
         };
         /** Error */
         Error: {
@@ -1840,9 +1738,9 @@ export interface components {
              */
             resource_selection_priority?: string[];
             /** @description Metadata associated with the location. The client is free to fill this object with any valid JSON. */
-            metadata?: Record<string, never> | null;
+            metadata?: Record<string, unknown> | null;
             /** @description Protected metadata associated with the location. The client is free to fill this object with any valid JSON. */
-            protected_metadata?: Record<string, never> | null;
+            protected_metadata?: Record<string, unknown> | null;
             /**
              * @description Whether the location is enabled.
              * @default true
@@ -1886,9 +1784,9 @@ export interface components {
              */
             resource_selection_priority?: string[];
             /** @description Metadata associated with the location. The client is free to fill this object with any valid JSON. */
-            metadata?: Record<string, never> | null;
+            metadata?: Record<string, unknown> | null;
             /** @description Protected metadata associated with the location. The client is free to fill this object with any valid JSON. */
-            protected_metadata?: Record<string, never> | null;
+            protected_metadata?: Record<string, unknown> | null;
             /** @description Whether the location is enabled. */
             enabled?: boolean;
         };
@@ -2044,9 +1942,9 @@ export interface components {
              */
             max_simultaneous_bookings: number | null;
             /** @description Metadata associated with the resource. The client is free to fill this object with any valid JSON. */
-            metadata?: Record<string, never> | null;
+            metadata?: Record<string, unknown> | null;
             /** @description Protected metadata associated with the resource. The client is free to fill this object with any valid JSON. */
-            protected_metadata?: Record<string, never> | null;
+            protected_metadata?: Record<string, unknown> | null;
             /**
              * @description Whether the resource is enabled.
              * @default true
@@ -2070,9 +1968,9 @@ export interface components {
             /** @description The maximum number of bookings this resource can handle simultaneously. If this is `null`, the resource has no limit on the number of simultaneous bookings. */
             max_simultaneous_bookings?: number | null;
             /** @description Metadata associated with the resource. The client is free to fill this object with any valid JSON. */
-            metadata?: Record<string, never> | null;
+            metadata?: Record<string, unknown> | null;
             /** @description Protected metadata associated with the resource. The client is free to fill this object with any valid JSON. */
-            protected_metadata?: Record<string, never> | null;
+            protected_metadata?: Record<string, unknown> | null;
             /** @description Whether the resource is enabled. */
             enabled?: boolean;
         };
@@ -2220,12 +2118,12 @@ export interface components {
              * @description Metadata associated with the service. The client is free to fill this object with any valid JSON.
              * @default null
              */
-            metadata: Record<string, never> | null;
+            metadata: Record<string, unknown> | null;
             /**
              * @description Protected metadata associated with the service. The client is free to fill this object with any valid JSON.
              * @default null
              */
-            protected_metadata: Record<string, never> | null;
+            protected_metadata: Record<string, unknown> | null;
             /**
              * @description Whether the service is enabled.
              * @default true
@@ -2411,13 +2309,10 @@ export interface components {
              * @description The cancelation threshold for the service, i.e. the minimum duration required between the current timestamp and the start of a booking to be allowed to cancel it (or how close to the start timestamp bookings are allowed to be canceled). This is formatted in the ISO 8601 format for durations: `P[n]Y[n]M[n]DT[n]H[n]M[n]S` or `P[n]W`, with a maximum of 4 digits per element and no decimal fractions.
              */
             cancelation_threshold?: string;
-            /**
-             * @description Metadata associated with the service. The client is free to fill this object with any valid JSON.
-             * @default null
-             */
-            metadata: Record<string, never> | null;
+            /** @description Metadata associated with the service. The client is free to fill this object with any valid JSON. */
+            metadata?: Record<string, unknown> | null;
             /** @description Protected metadata associated with the service. The client is free to fill this object with any valid JSON. */
-            protected_metadata?: Record<string, never> | null;
+            protected_metadata?: Record<string, unknown> | null;
             /** @description Whether the service is enabled. */
             enabled?: boolean;
         };
@@ -2459,9 +2354,8 @@ export interface components {
             /**
              * Format: duration
              * @description The default duration for the service. This can be used for example to prefill forms for bookings for this service. This is formatted in the ISO 8601 format for durations: `P[n]Y[n]M[n]DT[n]H[n]M[n]S` or `P[n]W`, with a maximum of 4 digits per element and no decimal fractions. This must be greater than or equal to `min_duration`, and less than or equal to `max_duration` (if `max_duration` is not `null`).
-             * @default null
              */
-            default_duration: string | null;
+            default_duration?: string | null;
             /**
              * Format: duration
              * @description The duration step allowed for the service. This is formatted in the ISO 8601 format for durations: `P[n]Y[n]M[n]DT[n]H[n]M[n]S` or `P[n]W`, with a maximum of 4 digits per element and no decimal fractions.
@@ -2527,11 +2421,8 @@ export interface components {
             min_days?: number;
             /** @description The maximum number of days allowed when booking the service. If this is `1`, only bookings with the same start and end date will be allowed, but only if `end_time` is after `start_time`. If this is `null`, there is no upper limit on the number of days for a booking. If not `null`, this must be greater than or equal to `min_days`. */
             max_days?: number | null;
-            /**
-             * @description The default number of days for the service. This can be used for example to prefill forms for bookings for this service. This must be greater than or equal to `min_days`, and less than or equal to `max_days` (if `max_days` is not `null`).
-             * @default null
-             */
-            default_days: number | null;
+            /** @description The default number of days for the service. This can be used for example to prefill forms for bookings for this service. This must be greater than or equal to `min_days`, and less than or equal to `max_days` (if `max_days` is not `null`). */
+            default_days?: number | null;
         } & components["schemas"]["ServiceAppendPatch"] & {
             /**
              * @description discriminator enum property added by openapi-typescript
@@ -4417,7 +4308,7 @@ export interface operations {
             };
         };
     };
-    putResourceRecurringScheduleScheduleBlock: {
+    putResourceRecurringScheduleBlock: {
         parameters: {
             query?: never;
             header?: never;
@@ -4494,7 +4385,7 @@ export interface operations {
             };
         };
     };
-    patchResourceRecurringScheduleScheduleBlock: {
+    patchResourceRecurringScheduleBlock: {
         parameters: {
             query?: never;
             header?: never;

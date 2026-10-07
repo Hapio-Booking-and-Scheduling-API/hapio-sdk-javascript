@@ -211,7 +211,7 @@ export declare const operations: {
     defaultContentType?: "application/json";
     params?: { path?: string[]; query?: string[]; header?: string[] };
   };
-  "patchResourceRecurringScheduleScheduleBlock": {
+  "patchResourceRecurringScheduleBlock": {
     method: "PATCH";
     path: "/resources/{resource}/recurring-schedules/{recurring-schedule}/schedule-blocks/{schedule-block}";
     defaultContentType?: "application/json";
@@ -307,7 +307,7 @@ export declare const operations: {
     defaultContentType?: "application/json";
     params?: { path?: string[]; query?: string[]; header?: string[] };
   };
-  "putResourceRecurringScheduleScheduleBlock": {
+  "putResourceRecurringScheduleBlock": {
     method: "PUT";
     path: "/resources/{resource}/recurring-schedules/{recurring-schedule}/schedule-blocks/{schedule-block}";
     defaultContentType?: "application/json";
@@ -339,3 +339,30 @@ export declare const operations: {
 
 export type OperationId = keyof typeof operations;
 export type OperationMeta<Id extends OperationId> = (typeof operations)[Id];
+
+/**
+ * The query parameters and request body properties that are timestamps, per operation. The client
+ * types let callers pass a `Date` for these. Operations without timestamps are not listed.
+ */
+export type TimestampFields = {
+  "getBookingGroups": { query: "from" | "to" | `starts_at[${string}]` | `ends_at[${string}]` | `buffer_starts_at[${string}]` | `buffer_ends_at[${string}]` | `created_at[${string}]` | `updated_at[${string}]` | `finalized_at[${string}]` | `canceled_at[${string}]` | `group_created_at[${string}]` | `group_updated_at[${string}]`; body: never };
+  "getBookings": { query: "from" | "to" | `starts_at[${string}]` | `ends_at[${string}]` | `buffer_starts_at[${string}]` | `buffer_ends_at[${string}]` | `created_at[${string}]` | `updated_at[${string}]` | `finalized_at[${string}]` | `canceled_at[${string}]`; body: never };
+  "getLocations": { query: `created_at[${string}]` | `updated_at[${string}]`; body: never };
+  "getResourceFullyBooked": { query: "from" | "to"; body: never };
+  "getResourceRecurringScheduleBlocks": { query: `created_at[${string}]` | `updated_at[${string}]`; body: never };
+  "getResourceRecurringSchedules": { query: `created_at[${string}]` | `updated_at[${string}]`; body: never };
+  "getResourceSchedule": { query: "from" | "to"; body: never };
+  "getResourceScheduleBlocks": { query: "from" | "to" | `starts_at[${string}]` | `ends_at[${string}]` | `created_at[${string}]` | `updated_at[${string}]`; body: never };
+  "getResources": { query: `created_at[${string}]` | `updated_at[${string}]`; body: never };
+  "getServiceBookableSlots": { query: "from" | "to"; body: never };
+  "getServices": { query: `created_at[${string}]` | `updated_at[${string}]`; body: never };
+  "patchBooking": { query: never; body: "buffer_ends_at" | "buffer_starts_at" | "ends_at" | "starts_at" };
+  "patchBookingGroup": { query: never; body: "buffer_ends_at" | "buffer_starts_at" | "ends_at" | "starts_at" };
+  "patchResourceScheduleBlock": { query: never; body: "ends_at" | "starts_at" };
+  "postBooking": { query: never; body: "buffer_ends_at" | "buffer_starts_at" | "ends_at" | "starts_at" };
+  "postBookingGroup": { query: never; body: "buffer_ends_at" | "buffer_starts_at" | "ends_at" | "starts_at" };
+  "postResourceScheduleBlock": { query: never; body: "ends_at" | "starts_at" };
+  "putBooking": { query: never; body: "buffer_ends_at" | "buffer_starts_at" | "ends_at" | "starts_at" };
+  "putBookingGroup": { query: never; body: "buffer_ends_at" | "buffer_starts_at" | "ends_at" | "starts_at" };
+  "putResourceScheduleBlock": { query: never; body: "ends_at" | "starts_at" };
+};
